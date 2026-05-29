@@ -24,3 +24,6 @@ build/
 # build.sh 실행 산출물
 logs/
 .run/
+
+# 에디터 설정
+.vscode/
