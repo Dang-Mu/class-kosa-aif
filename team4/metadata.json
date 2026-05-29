@@ -1,0 +1,6 @@
+{
+  "name": "게임 친구 매칭소",
+  "description": "같이 게임할 친구를 찾는 게임 친구 매칭 서비스",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

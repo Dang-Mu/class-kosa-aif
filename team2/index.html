@@ -1,0 +1,2563 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>대학 누리 — 한국 대학 3D 지도</title>
+  <link rel="icon" href="icon/Univer.png" type="image/png">
+  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/deck.gl@8.9.27/dist.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #000;
+      color: #fff;
+      overflow: hidden;
+    }
+    
+    #map { width: 100vw; height: 100vh; }
+    
+    /* 탑바 */
+    .topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 30px;
+      gap: 20px;
+      z-index: 1000;
+    }
+    
+    .logo {
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      white-space: nowrap;
+      letter-spacing: -0.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      justify-self: start;
+      text-shadow: 0 0 12px rgba(255, 255, 255, 0.25), 0 0 24px rgba(180, 210, 255, 0.12);
+      filter: drop-shadow(0 0 4px rgba(180, 210, 255, 0.2));
+    }
+    
+    .logo img {
+      width: 32px;
+      height: 32px;
+      filter: brightness(0) invert(1) drop-shadow(0 0 4px rgba(180, 210, 255, 0.4));
+    }
+    
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    
+    .topbar-recommend-btn {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 18px 8px 14px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50px;
+      color: #fff;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
+    .topbar-recommend-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+    
+    .topbar-recommend-btn-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    
+    .topbar-recommend-btn-icon svg {
+      width: 22px;
+      height: 22px;
+      display: block;
+    }
+    
+    .topbar-recommend-btn-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1px;
+    }
+    
+    .topbar-recommend-btn-line {
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: -0.3px;
+      white-space: nowrap;
+      color: #fff;
+    }
+    
+    .topbar-recommend-btn-line strong {
+      font-weight: 800;
+    }
+    
+    .search-box {
+      width: 480px;
+      position: relative;
+      justify-self: center;
+    }
+    
+    .search-wrapper {
+      position: relative;
+      width: 100%;
+    }
+    
+    .search-box input {
+      width: 100%;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 0 16px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      outline: none;
+      transition: all 0.2s;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .search-box input:focus {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 0 0 3px rgba(180, 210, 255, 0.15), 0 0 20px rgba(180, 210, 255, 0.2);
+    }
+    
+    .search-box input::placeholder {
+      color: transparent;
+    }
+    
+    /* 애니메이션 플레이스홀더 */
+    .search-placeholder {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    
+    .placeholder-text {
+      color: rgba(255, 255, 255, 0.35);
+      font-size: 14px;
+      font-weight: 400;
+      white-space: nowrap;
+      animation: slideUp 0.4s ease;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes slideOut {
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(-16px);
+      }
+    }
+    
+    .placeholder-text.out {
+      animation: slideOut 0.3s ease forwards;
+    }
+    
+    /* 검색 드롭다운 */
+    .search-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: rgba(10, 10, 10, 0.97);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      max-height: 400px;
+      overflow-y: auto;
+      z-index: 2000;
+      display: none;
+    }
+    
+    .search-dropdown.open {
+      display: block;
+    }
+    
+    .search-dropdown-item {
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      transition: background 0.15s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .search-dropdown-item:last-child {
+      border-bottom: none;
+    }
+    
+    .search-dropdown-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    
+    .search-dropdown-item .item-sub {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      font-weight: 400;
+    }
+    
+    .search-dropdown-empty {
+      padding: 12px 16px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.4);
+      text-align: center;
+    }
+    
+    .filters {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .filter-btn {
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .filter-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    
+    .filter-btn.active {
+      background: #fff;
+      border-color: #fff;
+      color: #000;
+    }
+    
+    /* 드롭다운 필터 */
+    .filter-dropdown {
+      position: relative;
+    }
+    
+    .filter-toggle-btn {
+      padding: 8px 16px;
+      background: #fff;
+      border: 1px solid #fff;
+      border-radius: 6px;
+      color: #000;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    
+    .filter-toggle-btn:hover {
+      background: rgba(255,255,255,0.85);
+    }
+    
+    .dropdown-arrow {
+      font-size: 10px;
+      transition: transform 0.2s;
+    }
+    
+    .filter-list {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      left: auto;
+      background: rgba(10, 10, 10, 0.97);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.25s ease, opacity 0.2s ease;
+      z-index: 2000;
+      min-width: 0;
+      width: max-content;
+    }
+    
+    .filter-list.open {
+      max-height: 300px;
+      opacity: 1;
+      overflow-y: auto;
+    }
+    
+    .filter-option {
+      padding: 11px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.75);
+      cursor: pointer;
+      transition: all 0.15s;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    
+    .filter-option:last-child {
+      border-bottom: none;
+    }
+    
+    .filter-option:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+    
+    .filter-option.active {
+      color: #fff;
+      font-weight: 700;
+      background: rgba(255,255,255,0.08);
+    }
+    
+    .filter-option.active::before {
+      content: '✓ ';
+    }
+    
+    .competition-btn.active {
+      background: #ef4444;
+      border-color: #ef4444;
+      color: #fff;
+    }
+    
+    .tuition-btn.active {
+      background: #a855f7;
+      border-color: #a855f7;
+      color: #fff;
+    }
+    
+    .mode-toggle-btn {
+      background: transparent;
+      border-color: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.7);
+    }
+    
+    .mode-toggle-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+    
+    .mode-toggle-btn.active {
+      background: #ef4444;
+      border-color: #ef4444;
+      color: #fff;
+    }
+    
+    /* 검색 결과 패널 (왼쪽) */
+    .search-panel {
+      position: fixed;
+      top: 60px;
+      left: -400px;
+      width: 400px;
+      height: calc(100vh - 60px);
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(24px) saturate(180%);
+      border-right: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 8px 0 32px rgba(0, 0, 0, 0.4);
+      transition: left 0.3s ease;
+      z-index: 900;
+      overflow-y: auto;
+    }
+    
+    .search-panel.open {
+      left: 0;
+    }
+    
+    .search-panel-header {
+      padding: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .search-panel-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+    
+    .close-btn:hover {
+      opacity: 1;
+    }
+    
+    .search-results {
+      padding: 10px;
+    }
+    
+    .search-item {
+      padding: 15px;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .search-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    .search-item-name {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    
+    .search-item-info {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 600;
+    }
+    
+    /* 상세 정보 패널 (오른쪽) */
+    .detail-panel {
+      position: fixed;
+      top: 60px;
+      right: -450px;
+      width: 450px;
+      height: calc(100vh - 60px);
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(24px) saturate(180%);
+      border-left: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: -8px 0 32px rgba(0, 0, 0, 0.4);
+      transition: right 0.3s ease;
+      z-index: 900;
+      overflow-y: auto;
+    }
+    
+    .detail-panel.open {
+      right: 0;
+    }
+    
+    .detail-header {
+      padding: 25px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .detail-title {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    
+    .detail-subtitle {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 600;
+    }
+    
+    .detail-content {
+      padding: 25px;
+    }
+    
+    .detail-section {
+      margin-bottom: 30px;
+    }
+    
+    .detail-section-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 15px;
+    }
+    
+    .detail-row {
+      display: flex;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+    
+    .detail-label {
+      width: 120px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 600;
+    }
+    
+    .detail-value {
+      flex: 1;
+      font-size: 13px;
+      color: #fff;
+      font-weight: 600;
+    }
+    
+    .detail-link {
+      color: #4a9eff;
+      text-decoration: none;
+      font-weight: 700;
+    }
+    
+    .detail-link:hover {
+      text-decoration: underline;
+    }
+    
+    .department-list {
+      margin-top: 10px;
+    }
+    
+    .department-item {
+      padding: 12px;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+    }
+    
+    .department-name {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    
+    .department-info {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 600;
+    }
+    
+    /* 스크롤바 */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    /* 하단 바 wrapper */
+    .bottom-bars-wrapper {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      z-index: 1000;
+    }
+    
+    /* 하단 필터 바 */
+    .bottom-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50px;
+      padding: 8px 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+    
+    /* 하단 옵션 바 */
+    .bottom-mode-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50px;
+      padding: 8px 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+    
+    .bottom-filter-btn {
+      padding: 8px 18px;
+      background: transparent;
+      border: none;
+      border-radius: 50px;
+      color: rgba(255, 255, 255, 0.85);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .bottom-filter-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    
+    .bottom-filter-btn.active {
+      background: #fff;
+      color: #000;
+    }
+    
+    .bottom-filter-btn.active-blue {
+      background: #3b82f6;
+      color: #fff;
+    }
+    
+    .bottom-filter-btn.active-orange {
+      background: #f59e0b;
+      color: #fff;
+    }
+    
+    .bottom-mode-btn {
+      padding: 8px 18px;
+      background: transparent;
+      border: none;
+      border-radius: 50px;
+      color: rgba(255, 255, 255, 0.85);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .bottom-mode-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    
+    .bottom-mode-btn.active {
+      background: #fff;
+      color: #000;
+    }
+    
+    .bottom-mode-btn.active-red {
+      background: #ef4444;
+      color: #fff;
+    }
+    
+    .bottom-mode-btn.active-purple {
+      background: #a855f7;
+      color: #fff;
+    }
+    
+    .bottom-mode-btn.active-blue {
+      background: #3b82f6;
+      color: #fff;
+    }
+    .label {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.75);
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    
+    .label-selected {
+      background: rgba(255, 255, 255, 0.95);
+      color: #000;
+      font-size: 13px;
+      border: none;
+      box-shadow: 0 2px 12px rgba(255,255,255,0.3);
+    }
+    
+    /* 오른쪽 필터 패널 (슬라이드) */
+    .filter-panel {
+      position: fixed;
+      top: 60px;
+      right: -360px;
+      width: 340px;
+      height: calc(100vh - 60px);
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(24px) saturate(180%);
+      border-left: 1px solid rgba(255,255,255,0.2);
+      box-shadow: -8px 0 32px rgba(0,0,0,0.3);
+      transition: right 0.35s cubic-bezier(0.4,0,0.2,1);
+      z-index: 1100;
+      overflow-y: auto;
+      padding: 0;
+      color: #fff;
+    }
+    
+    .filter-panel.open {
+      right: 0;
+    }
+    
+    .filter-panel.open.search-open {
+      right: 0;
+    }
+    
+    .filter-panel-header {
+      padding: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .filter-panel-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+    
+    .filter-panel-body {
+      padding: 20px;
+    }
+    
+    .filter-section {
+      margin-bottom: 28px;
+    }
+    
+    .filter-section-label {
+      font-size: 12px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    
+    .range-row {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    
+    .range-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .range-inputs input[type=range] {
+      width: 100%;
+      accent-color: #fff;
+      cursor: pointer;
+    }
+    
+    /* Range Slider 스타일 */
+    .range-slider-container {
+      position: relative;
+      width: 100%;
+      height: 40px;
+      margin: 10px 0;
+      display: flex;
+      align-items: center;
+    }
+    
+    .range-slider-container input[type=range] {
+      position: absolute;
+      width: 100%;
+      height: 6px;
+      background: transparent;
+      pointer-events: none;
+      -webkit-appearance: none;
+      appearance: none;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    
+    .range-slider-container input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #fff;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      cursor: pointer;
+      pointer-events: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      margin-top: 0;
+    }
+    
+    .range-slider-container input[type=range]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: #fff;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      cursor: pointer;
+      pointer-events: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    
+    .range-slider-track {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 3px;
+    }
+    
+    .range-slider-fill {
+      position: absolute;
+      height: 100%;
+      background: #fff;
+      border-radius: 3px;
+    }
+    
+    .range-values {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.8);
+      font-weight: 600;
+    }
+    
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    
+    .slider-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      font-weight: 600;
+      width: 28px;
+      flex-shrink: 0;
+    }
+    
+    .slider-val {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    
+    .slider-row input[type=range] {
+      flex: 1;
+      accent-color: #fff;
+      cursor: pointer;
+    }
+    
+    .reset-filter-btn {
+      width: 100%;
+      padding: 10px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 16px;
+    }
+    
+    .reset-filter-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    .filter-result {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      text-align: center;
+    }
+    
+    .filter-result-link {
+      font-size: 14px;
+      color: rgba(255,255,255,0.8);
+      text-align: center;
+      cursor: pointer;
+      padding: 12px 0;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+    
+    .filter-result-link:hover {
+      color: #fff;
+      text-decoration: underline;
+    }
+    
+    .grade-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    
+    .grade-btn {
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 20px;
+      color: rgba(255,255,255,0.8);
+      font-size: 12px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .grade-btn:hover {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+    
+    .grade-btn.active {
+      background: #fff;
+      color: #000;
+      border-color: #fff;
+    }
+    
+    /* 필터 패널 토글 버튼 제거 (탑바 버튼으로 대체) */
+    
+    /* degree_type 필터 - 왼쪽 세로 배치 */
+    .degree-filter-bar {
+      position: fixed;
+      top: 50%;
+      left: 20px;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 1000;
+      transition: left 0.3s ease;
+    }
+    
+    .degree-filter-bar.panel-open {
+      left: 20px;
+    }
+    
+    .degree-filter-bar.search-open {
+      left: 420px;
+    }
+    
+    .degree-filter-btn {
+      padding: 10px 18px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50px;
+      color: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      transition: all 0.2s;
+      white-space: nowrap;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
+      text-align: center;
+    }
+    
+    .degree-filter-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 6px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
+      transform: translateX(2px);
+    }
+    
+    .degree-filter-btn.active {
+      background: rgba(255, 255, 255, 0.95);
+      color: #000;
+      border-color: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 6px 28px rgba(255,255,255,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
+    }
+    
+    /* 2D/3D 토글 버튼 */
+    .view-toggle-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      padding: 12px 24px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50px;
+      color: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      transition: all 0.2s;
+      white-space: nowrap;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
+      z-index: 1000;
+    }
+    
+    .view-toggle-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 6px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
+    }
+    
+    .view-toggle-btn.active-3d {
+      background: rgba(255, 255, 255, 0.95);
+      color: #000;
+      border-color: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 6px 28px rgba(255,255,255,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
+    }
+    
+    /* 대학 리스트 패널 (왼쪽) */
+    .university-list-panel {
+      position: fixed;
+      top: 60px;
+      left: -400px;
+      width: 400px;
+      height: calc(100vh - 60px);
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(24px) saturate(180%);
+      border-right: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 8px 0 32px rgba(0, 0, 0, 0.4);
+      transition: left 0.3s ease;
+      z-index: 900;
+      overflow-y: auto;
+    }
+    
+    .university-list-panel.open {
+      left: 0;
+    }
+    
+    .university-list-header {
+      padding: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(24px);
+      z-index: 10;
+    }
+    
+    .university-list-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    
+    .university-list-count {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 600;
+    }
+    
+    .university-list-body {
+      padding: 10px;
+    }
+    
+    .university-list-item {
+      padding: 15px;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .university-list-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateX(4px);
+    }
+    
+    .university-list-item-name {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    
+    .university-list-item-info {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 600;
+      display: flex;
+      gap: 8px;
+    }
+    
+    .university-list-item-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    
+    .badge-national {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+    }
+    
+    .badge-private {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+    }
+    
+    .badge-seoul {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+    
+    .badge-province {
+      background: rgba(249, 115, 22, 0.2);
+      color: #fb923c;
+    }
+  </style>
+</head>
+<body>
+  <!-- 탑바 -->
+  <div class="topbar">
+    <a href="#" class="logo" id="logoLink" style="text-decoration:none;">
+      <img src="icon/Univer.png" alt="대학 누리">
+      대학 누리
+    </a>
+    <div class="search-box">
+      <div class="search-wrapper">
+        <input type="text" id="searchInput" autocomplete="off" />
+        <div class="search-placeholder" id="searchPlaceholder">
+          <span class="placeholder-text" id="placeholderText"></span>
+        </div>
+        <!-- 검색어 드롭다운 -->
+        <div class="search-dropdown" id="searchDropdown"></div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button type="button" class="topbar-recommend-btn" onclick="toggleFilterPanel()">
+        <span class="topbar-recommend-btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 4h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-7.2L8 20.5V17H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M9.5 9.2l1.1 2.2 2.4.35-1.75 1.7.41 2.35-2.16-1.14-2.16 1.14.41-2.35-1.75-1.7 2.4-.35 1.1-2.2z" fill="currentColor"/>
+            <path d="M15.2 8.8l.65 1.3 1.4.2-1.02.98.24 1.38-1.27-.67-1.27.67.24-1.38-1.02-.98 1.4-.2.65-1.3z" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="topbar-recommend-btn-text">
+          <span class="topbar-recommend-btn-line">개인 맞춤형</span>
+          <span class="topbar-recommend-btn-line">대학 <strong>추천</strong> 받아보기</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 하단 바 전체 wrapper -->
+  <div class="bottom-bars-wrapper">
+    <!-- 하단 옵션 바 (위) -->
+    <div class="bottom-mode-bar">
+      <button class="bottom-mode-btn active" id="modeBtn-none" onclick="selectBottomMode(this, 'none')">기본</button>
+      <button class="bottom-mode-btn" id="modeBtn-competition" onclick="selectBottomMode(this, 'competition')">평균 경쟁률</button>
+      <button class="bottom-mode-btn" id="modeBtn-tuition" onclick="selectBottomMode(this, 'tuition')">등록금</button>
+    </div>
+    <!-- 하단 필터 바 (아래) -->
+    <div class="bottom-filter-bar">
+      <button class="bottom-filter-btn active" onclick="selectBottomFilter(this, 'all', '')">전체</button>
+      <button class="bottom-filter-btn" onclick="selectBottomFilter(this, 'type', '국립')">국립</button>
+      <button class="bottom-filter-btn" onclick="selectBottomFilter(this, 'type', '사립')">사립</button>
+      <button class="bottom-filter-btn" onclick="selectBottomFilter(this, 'region', '인서울')">인서울</button>
+      <button class="bottom-filter-btn" onclick="selectBottomFilter(this, 'region', '지방')">지방</button>
+    </div>
+  </div>
+  
+  <!-- 지도 -->
+  <div id="map"></div>
+  
+  <!-- HTML 빌보드 레이블 -->
+  <div id="labelContainer" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:500;"></div>
+  
+  <!-- 오른쪽 필터 패널 -->
+  <div class="filter-panel" id="filterPanel">
+    <div class="filter-panel-header">
+      <span class="filter-panel-title">개인 맞춤형 필터</span>
+      <button class="close-btn" onclick="closeFilterPanel()">×</button>
+    </div>
+    <div class="filter-panel-body">
+      <div class="filter-section">
+        <div class="filter-section-label">평균 경쟁률</div>
+        <div class="range-slider-container">
+          <div class="range-slider-track">
+            <div class="range-slider-fill" id="compFill"></div>
+          </div>
+          <input type="range" id="compMin" min="0" max="10" step="0.1" value="0" oninput="updateRangeSlider('comp')">
+          <input type="range" id="compMax" min="0" max="10" step="0.1" value="10" oninput="updateRangeSlider('comp')">
+        </div>
+        <div class="range-values">
+          <span id="compMinVal">0</span>
+          <span id="compMaxVal">10</span>
+        </div>
+      </div>
+      
+      <div class="filter-section">
+        <div class="filter-section-label">학기 등록금</div>
+        <div class="range-slider-container">
+          <div class="range-slider-track">
+            <div class="range-slider-fill" id="tuitionFill"></div>
+          </div>
+          <input type="range" id="tuitionMin" min="0" max="1000" step="10" value="0" oninput="updateRangeSlider('tuition')">
+          <input type="range" id="tuitionMax" min="0" max="1000" step="10" value="1000" oninput="updateRangeSlider('tuition')">
+        </div>
+        <div class="range-values">
+          <span id="tuitionMinVal">0만원</span>
+          <span id="tuitionMaxVal">1000만원</span>
+        </div>
+      </div>
+      
+      <div class="filter-section">
+        <div class="filter-section-label">평균 등급</div>
+        <div class="range-slider-container">
+          <div class="range-slider-track">
+            <div class="range-slider-fill" id="gradeFill"></div>
+          </div>
+          <input type="range" id="gradeMin" min="0" max="9" step="0.1" value="0" oninput="updateRangeSlider('grade')">
+          <input type="range" id="gradeMax" min="0" max="9" step="0.1" value="9" oninput="updateRangeSlider('grade')">
+        </div>
+        <div class="range-values">
+          <span id="gradeMinVal">0</span>
+          <span id="gradeMaxVal">9</span>
+        </div>
+      </div>
+      
+      <button class="reset-filter-btn" onclick="resetFilter()">초기화</button>
+      <div class="filter-result-link" onclick="toggleUniversityList()">
+        <span id="filterResultCount">10</span>개 대학 표시하기
+      </div>
+    </div>
+  </div>
+  
+  <!-- 2D/3D 토글 버튼 -->
+  <button class="view-toggle-btn active-3d" id="viewToggleBtn" onclick="toggle3DView()">3D 보기</button>
+  
+  <!-- degree_type 필터 (왼쪽 세로) -->
+  <div class="degree-filter-bar">
+    <button class="degree-filter-btn active" onclick="selectDegreeFilter(this, '')">전체</button>
+    <button class="degree-filter-btn" onclick="selectDegreeFilter(this, '대학교')">대학교</button>
+    <button class="degree-filter-btn" onclick="selectDegreeFilter(this, '전문대학')">전문대학</button>
+    <button class="degree-filter-btn" onclick="selectDegreeFilter(this, '기술대학')">기술대학</button>
+  </div>
+  <!-- 검색 결과 패널 (왼쪽) -->
+  <div class="search-panel" id="searchPanel">
+    <div class="search-panel-header">
+      <div class="search-panel-title">검색 결과 (<span id="resultCount">0</span>)</div>
+      <button class="close-btn" onclick="closeSearchPanel()">×</button>
+    </div>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+  
+  <!-- 대학 리스트 패널 (왼쪽) -->
+  <div class="university-list-panel" id="universityListPanel">
+    <div class="university-list-header">
+      <div>
+        <div class="university-list-title">필터링된 대학</div>
+        <div class="university-list-count"><span id="listResultCount">0</span>개 대학</div>
+      </div>
+      <button class="close-btn" onclick="closeUniversityList()">×</button>
+    </div>
+    <div class="university-list-body" id="universityListBody"></div>
+  </div>
+  
+  <!-- 상세 정보 패널 (오른쪽) -->
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+      <button class="close-btn" onclick="closeDetailPanel()" style="float:right;">×</button>
+      <div class="detail-title" id="detailTitle">대학명</div>
+      <div class="detail-subtitle" id="detailSubtitle">캠퍼스</div>
+    </div>
+    <div class="detail-content" id="detailContent"></div>
+  </div>
+
+  <script>
+    console.log('대학 누리 시작');
+    
+    // DB에서 로드 (sql.js)
+    let ALL_DATA = [];
+    
+    let deckInstance = null;
+    let currentFilter = 'all';
+    let currentValue = '';
+    let currentDegree = ''; // degree_type 필터
+    let selectedUniId = null;
+    let showCompetition = false;
+    let showTuition = false;
+    let showRegion = false;
+    let is3DMode = true;
+    let was3DBeforeSelection = true; // 선택 전 3D 상태 저장
+    
+    // 지역 판별: 행정구역이 서울이면 인서울, 아니면 지방
+    function getRegion(adminDistrict) {
+      if (!adminDistrict) return '지방';
+      return adminDistrict.includes('서울') ? '인서울' : '지방';
+    }
+    
+    // landSize → radius 계산
+    function calcRadius(landSize) {
+      if (!landSize || landSize <= 0) return 2000;
+      const MIN = 50000, MAX = 6000000;
+      const t = Math.min(1, Math.max(0, (landSize - MIN) / (MAX - MIN)));
+      return Math.round(2000 + t * 13000); // 2000m ~ 15000m (매우 크게)
+    }
+    
+    // DB 로드
+    async function loadDB() {
+      try {
+        const SQL = await initSqlJs({
+          locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${file}`
+        });
+        
+        const response = await fetch('university.db');
+        const buffer = await response.arrayBuffer();
+        const db = new SQL.Database(new Uint8Array(buffer));
+        
+        const result = db.exec(`
+          SELECT 
+            id, school_name, campus_type, establishment_type,
+            degree_type, founding_date, administrative_district,
+            address, latitude, longitude, homepage,
+            tuition, average_competition_rate, average_grade_cut, 
+            recruitment_quota, site_area_sqm
+          FROM universities
+          WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+            AND latitude != 0 AND longitude != 0
+          ORDER BY school_name
+        `);
+        
+        if (result.length > 0) {
+          const cols = result[0].columns;
+          console.log('DB 컬럼:', cols);
+          ALL_DATA = result[0].values.map((row, i) => {
+            const r = {};
+            cols.forEach((c, j) => r[c] = row[j]);
+            const region = getRegion(r.administrative_district);
+            return {
+              id: r.id,
+              name: r.school_name,
+              campus: r.campus_type || '본캠퍼스',
+              type: r.establishment_type || '사립',
+              region: region,
+              category: r.degree_type || '-',
+              lat: r.latitude,
+              lng: r.longitude,
+              radius: calcRadius(r.site_area_sqm),
+              founded: r.founding_date || '-',
+              address: r.address || '-',
+              landSize: r.site_area_sqm || 0,
+              website: r.homepage || '-',
+              avgCompetition: r.average_competition_rate || 0,
+              avgGrade: r.average_grade_cut || 0,
+              recruitmentQuota: r.recruitment_quota || 0,
+              tuition: r.tuition || 0
+            };
+          });
+          console.log('로드된 데이터 샘플:', ALL_DATA[0]);
+        } else {
+          console.error('❌ DB 쿼리 결과가 비어있습니다');
+        }
+        
+        db.close();
+        console.log(`✅ DB 로드 완료: ${ALL_DATA.length}개 대학`);
+        
+        // 경쟁률 슬라이더 최대값을 DB 최고값으로 설정
+        const maxComp = Math.ceil(Math.max(...ALL_DATA.map(u => u.avgCompetition || 0)));
+        const compMinEl = document.getElementById('compMin');
+        const compMaxEl = document.getElementById('compMax');
+        compMinEl.min = 0;
+        compMinEl.max = maxComp;
+        compMaxEl.min = 0;
+        compMaxEl.max = maxComp;
+        compMinEl.value = 0;
+        compMaxEl.value = maxComp;
+        filterCompMax = maxComp;
+        document.getElementById('compMaxVal').textContent = fmtNum(maxComp);
+        document.getElementById('compMinVal').textContent = '0';
+        
+        // 등급 슬라이더 최대값 설정
+        const maxGrade = Math.ceil(Math.max(...ALL_DATA.map(u => u.avgGrade || 0)));
+        const gradeMinEl = document.getElementById('gradeMin');
+        const gradeMaxEl = document.getElementById('gradeMax');
+        if (maxGrade > 0) {
+          gradeMinEl.min = 0;
+          gradeMinEl.max = maxGrade;
+          gradeMaxEl.min = 0;
+          gradeMaxEl.max = maxGrade;
+          gradeMinEl.value = 0;
+          gradeMaxEl.value = maxGrade;
+          filterGradeMax = maxGrade;
+          document.getElementById('gradeMaxVal').textContent = fmtNum(maxGrade);
+          document.getElementById('gradeMinVal').textContent = '0';
+        }
+        
+        // 초기 슬라이더 채우기 업데이트
+        setTimeout(() => {
+          updateRangeSlider('comp');
+          updateRangeSlider('tuition');
+          updateRangeSlider('grade');
+        }, 100);
+        
+        // 플레이스홀더 이름 업데이트
+        PLACEHOLDER_NAMES.length = 0;
+        ALL_DATA.forEach(u => PLACEHOLDER_NAMES.push(u.name));
+        
+        // 필터 결과 카운트 업데이트
+        document.getElementById('filterResultCount').textContent = ALL_DATA.length;
+        
+        render();
+        
+      } catch(e) {
+        console.error('DB 로드 실패:', e);
+      }
+    }
+    let currentViewState = { longitude: 127.0, latitude: 37.5, zoom: 7, pitch: 45 };
+    
+    // 숫자 표시 (정수면 소수 생략, 소수는 불필요한 0 제거)
+    function fmtNum(v, decimals = 1) {
+      if (v % 1 === 0) return v.toFixed(0);
+      return parseFloat(v.toFixed(decimals)).toString();
+    }
+    
+    // 등급 계산
+    function getGrade(comp) {
+      if (!comp || comp <= 0) return '-';
+      if (comp >= 8) return 'S+';
+      if (comp >= 6) return 'S';
+      if (comp >= 5) return 'A+';
+      if (comp >= 4) return 'A';
+      if (comp >= 3) return 'B';
+      if (comp >= 2) return 'C';
+      return 'D';
+    }
+    let filterCompMin = 0, filterCompMax = 999;
+    let filterTuitionMin = 0, filterTuitionMax = 999999999;
+    let filterGradeMin = 0, filterGradeMax = 9;
+    
+    // 범위 필터 적용 여부 확인
+    function isInRange(uni) {
+      const comp = uni.avgCompetition || 0;
+      const tuition = uni.tuition || 0;
+      const grade = uni.avgGrade || 0;
+      return comp >= filterCompMin && comp <= filterCompMax &&
+             tuition >= filterTuitionMin && tuition <= filterTuitionMax &&
+             (grade === 0 || (grade >= filterGradeMin && grade <= filterGradeMax));
+    }
+    
+    // 레이어 생성 - 선택된 건물을 맨 마지막에 배치해서 항상 위에 렌더링
+    function createLayers(data) {
+      const hasSelection = selectedUniId !== null;
+
+      // 색상 계산 함수 (단일 색상, 그라데이션 없음)
+      function getColor(uni) {
+        const isSelected = uni.id === selectedUniId;
+        const isSeoul = uni.region === '인서울';
+        const inRange = isInRange(uni);
+
+        if (isSelected) return [220, 230, 255, 255];
+
+        if (!inRange) {
+          return isSeoul ? [20, 40, 80, 40] : [80, 40, 10, 40];
+        }
+
+        const dimAlpha = hasSelection ? 50 : 255;
+
+        if (showCompetition) {
+          const compT = Math.min(1, Math.max(0, (uni.avgCompetition - 2) / 8));
+          const mix = 0.15 + compT * 0.85;
+          return [
+            Math.round(255 * (1 - mix) + 220 * mix),
+            Math.round(255 * (1 - mix) + 30 * mix),
+            Math.round(255 * (1 - mix) + 30 * mix),
+            dimAlpha
+          ];
+        }
+        if (showTuition) {
+          const tuitionT = Math.min(1, Math.max(0, uni.tuition / 9000000));
+          const mix = 0.15 + tuitionT * 0.85;
+          return [
+            Math.round(255 * (1 - mix) + 140 * mix),
+            Math.round(255 * (1 - mix) + 20 * mix),
+            Math.round(255 * (1 - mix) + 255 * mix),
+            dimAlpha
+          ];
+        }
+        if (hasSelection) {
+          return isSeoul ? [20, 60, 180, 55] : [180, 80, 10, 55];
+        }
+        return isSeoul ? [40, 120, 255, 255] : [255, 160, 20, 255];
+      }
+      
+      // 테두리 색상 계산
+      function getLineColor(uni) {
+        const isSelected = uni.id === selectedUniId;
+        const isSeoul = uni.region === '인서울';
+        const inRange = isInRange(uni);
+        
+        if (isSelected) return [200, 220, 255, 255];
+        
+        if (!inRange) {
+          return [255, 255, 255, 20];
+        }
+        
+        return [255, 255, 255, 30];
+      }
+
+      // 건물 높이 계산
+      function getHeight(uni) {
+        if (!is3DMode) return 0; // 2D 모드에서는 높이 0
+        if (showCompetition) return Math.max(5000, (uni.avgCompetition || 1) * 5000);
+        if (showTuition) return uni.tuition === 0 ? 5000 : Math.max(5000, (uni.tuition / 1000000) * 2000);
+        return 20000;
+      }
+
+      // 선택된 건물은 맨 마지막에 (항상 위에 렌더링)
+      const unselected = data.filter(u => u.id !== selectedUniId);
+      const selected = data.filter(u => u.id === selectedUniId);
+      const ordered = [...unselected, ...selected];
+
+      // 단일 ColumnLayer로 모든 대학 처리 (레이어 수 최소화)
+      const layers = [];
+
+      // 비선택 대학들 - 하나의 레이어로 묶기
+      if (unselected.length > 0) {
+        layers.push(new deck.ColumnLayer({
+          id: 'unis-unselected',
+          data: unselected,
+          diskResolution: is3DMode ? 4 : 4,
+          radiusScale: 1,
+          getRadius: d => d.radius || 2000,
+          getElevation: d => getHeight(d),
+          getPosition: d => [d.lng, d.lat],
+          getFillColor: d => getColor(d),
+          getLineColor: d => getLineColor(d),
+          lineWidthMinPixels: 1,
+          extruded: is3DMode,
+          flatShading: !is3DMode,
+          pickable: true,
+          autoHighlight: true,
+          highlightColor: [255, 255, 255, 100],
+          visible: !hasSelection,
+          transitions: {
+            getElevation: {
+              duration: 600,
+              easing: t => t * (2 - t)
+            }
+          },
+          updateTriggers: {
+            getFillColor: [selectedUniId, showCompetition, showTuition, showRegion, filterCompMin, filterCompMax, filterTuitionMin, filterTuitionMax],
+            getLineColor: [showRegion, selectedUniId],
+            getElevation: [showCompetition, showTuition, is3DMode],
+            getRadius: [],
+            extruded: [is3DMode],
+            visible: [selectedUniId]
+          },
+          onHover: info => {
+            if (info.object) {
+              document.body.style.cursor = 'pointer';
+            } else {
+              document.body.style.cursor = 'default';
+            }
+          },
+          onClick: info => {
+            if (info.object) {
+              if (info.object.id === selectedUniId) closeDetailPanel();
+              else showDetail(info.object);
+            }
+          }
+        }));
+      }
+
+      // 선택된 대학 - 별도 레이어 (항상 위에)
+      if (selected.length > 0) {
+        layers.push(new deck.ColumnLayer({
+          id: 'uni-selected',
+          data: selected,
+          diskResolution: is3DMode ? 4 : 4,
+          radiusScale: 1.15,
+          getRadius: d => (d.radius || 2000),
+          getElevation: d => getHeight(d),
+          getPosition: d => [d.lng, d.lat],
+          getFillColor: [220, 230, 255, 255],
+          getLineColor: [200, 220, 255, 255],
+          lineWidthMinPixels: 3,
+          extruded: is3DMode,
+          flatShading: !is3DMode,
+          pickable: true,
+          transitions: {
+            getElevation: {
+              duration: 1200,
+              easing: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
+            },
+            radiusScale: {
+              duration: 400,
+              easing: t => t * (2 - t)
+            }
+          },
+          updateTriggers: {
+            getElevation: [showCompetition, showTuition, is3DMode],
+            extruded: [is3DMode],
+            radiusScale: [selectedUniId]
+          },
+          onClick: info => { if (info.object) closeDetailPanel(); }
+        }));
+      }
+
+      return layers;
+    }
+    
+    // 모드 드롭다운 토글
+    function toggleModeDropdown() {
+      const list = document.getElementById('modeList');
+      const arrow = document.getElementById('modeDropdownArrow');
+      const isOpen = list.classList.contains('open');
+      list.classList.toggle('open', !isOpen);
+      arrow.textContent = isOpen ? '▼' : '▲';
+    }
+    
+    // 모드 선택
+    function selectMode(el, mode, label) {
+      showCompetition = mode === 'competition';
+      showTuition = mode === 'tuition';
+      
+      document.querySelectorAll('#modeList .filter-option').forEach(o => o.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('modeLabel').textContent = label;
+      
+      // 활성화 상태에 따라 버튼 색상 변경
+      const btn = document.getElementById('modeToggleBtn');
+      if (mode === 'competition') {
+        btn.style.background = '#ef4444';
+        btn.style.borderColor = '#ef4444';
+        btn.style.color = '#fff';
+      } else if (mode === 'tuition') {
+        btn.style.background = '#a855f7';
+        btn.style.borderColor = '#a855f7';
+        btn.style.color = '#fff';
+      } else {
+        btn.style.background = '';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }
+      
+      // 드롭다운 닫기
+      document.getElementById('modeList').classList.remove('open');
+      document.getElementById('modeDropdownArrow').textContent = '▼';
+      
+      render();
+    }
+    
+    function getFiltered() {
+      let result = ALL_DATA;
+      if (currentFilter !== 'all') {
+        result = result.filter(u => u[currentFilter] === currentValue);
+      }
+      if (currentDegree) {
+        result = result.filter(u => matchesDegree(u));
+      }
+      return result;
+    }
+    
+    // 대학 리스트 패널 토글
+    function toggleUniversityList() {
+      const panel = document.getElementById('universityListPanel');
+      const isOpen = panel.classList.contains('open');
+      
+      if (isOpen) {
+        closeUniversityList();
+      } else {
+        // 검색 패널이 열려있으면 닫기
+        closeSearchPanel();
+        
+        // 리스트 업데이트 및 열기
+        updateUniversityList();
+        panel.classList.add('open');
+        document.querySelector('.degree-filter-bar').classList.add('search-open');
+      }
+    }
+    
+    function closeUniversityList() {
+      const panel = document.getElementById('universityListPanel');
+      panel.classList.remove('open');
+      document.querySelector('.degree-filter-bar').classList.remove('search-open');
+    }
+    
+    function updateUniversityList() {
+      // getFiltered() + isInRange() 모두 적용
+      const filtered = getFiltered().filter(u => isInRange(u));
+      const body = document.getElementById('universityListBody');
+      const count = document.getElementById('listResultCount');
+      
+      count.textContent = filtered.length;
+      
+      body.innerHTML = filtered.map(uni => {
+        const typeBadge = uni.type === '국립' ? 'badge-national' : 'badge-private';
+        const regionBadge = uni.region === '인서울' ? 'badge-seoul' : 'badge-province';
+        
+        return `
+          <div class="university-list-item" onclick="showDetail(ALL_DATA.find(u => u.id === ${uni.id}))">
+            <div class="university-list-item-name">${uni.name}</div>
+            <div class="university-list-item-info">
+              <span class="university-list-item-badge ${typeBadge}">${uni.type}</span>
+              <span class="university-list-item-badge ${regionBadge}">${uni.region}</span>
+              <span>${uni.campus}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // 렌더링
+    function render() {
+      const filtered = getFiltered();
+      const layers = createLayers(filtered);
+      
+      if (deckInstance) {
+        deckInstance.setProps({ layers: layers });
+      }
+      
+      updateLabels();
+      
+      // 필터 카운트 항상 최신화
+      updateFilterCount();
+      
+      // 리스트 패널이 열려있으면 자동 업데이트
+      if (document.getElementById('universityListPanel').classList.contains('open')) {
+        updateUniversityList();
+      }
+    }
+    
+    // 필터 패널 토글
+    function toggleFilterPanel() {
+      const panel = document.getElementById('filterPanel');
+      const isOpen = panel.classList.contains('open');
+      panel.classList.toggle('open', !isOpen);
+    }
+    
+    function closeFilterPanel() {
+      document.getElementById('filterPanel').classList.remove('open');
+    }
+    
+    // 필터 카운트 업데이트 헬퍼
+    function updateFilterCount() {
+      const count = getFiltered().filter(u => isInRange(u)).length;
+      document.getElementById('filterResultCount').textContent = count;
+    }
+    function updateRangeSlider(type) {
+      let minInput, maxInput, minVal, maxVal, fill;
+      
+      if (type === 'comp') {
+        minInput = document.getElementById('compMin');
+        maxInput = document.getElementById('compMax');
+        minVal = document.getElementById('compMinVal');
+        maxVal = document.getElementById('compMaxVal');
+        fill = document.getElementById('compFill');
+      } else if (type === 'tuition') {
+        minInput = document.getElementById('tuitionMin');
+        maxInput = document.getElementById('tuitionMax');
+        minVal = document.getElementById('tuitionMinVal');
+        maxVal = document.getElementById('tuitionMaxVal');
+        fill = document.getElementById('tuitionFill');
+      } else if (type === 'grade') {
+        minInput = document.getElementById('gradeMin');
+        maxInput = document.getElementById('gradeMax');
+        minVal = document.getElementById('gradeMinVal');
+        maxVal = document.getElementById('gradeMaxVal');
+        fill = document.getElementById('gradeFill');
+      }
+      
+      if (!minInput || !maxInput || !fill) return;
+      
+      let minValue = parseFloat(minInput.value);
+      let maxValue = parseFloat(maxInput.value);
+      const minRange = parseFloat(minInput.min);
+      const maxRange = parseFloat(minInput.max);
+      
+      // 최소값이 최대값보다 크면 교환
+      if (minValue > maxValue) {
+        [minValue, maxValue] = [maxValue, minValue];
+        minInput.value = minValue;
+        maxInput.value = maxValue;
+      }
+      
+      // 값 표시 업데이트
+      if (type === 'comp') {
+        minVal.textContent = fmtNum(minValue, 1);
+        maxVal.textContent = fmtNum(maxValue, 1);
+      } else if (type === 'tuition') {
+        minVal.textContent = Math.round(minValue) + '만원';
+        maxVal.textContent = Math.round(maxValue) + '만원';
+      } else if (type === 'grade') {
+        minVal.textContent = fmtNum(minValue, 1);
+        maxVal.textContent = fmtNum(maxValue, 1);
+      }
+      
+      // 슬라이더 채우기 바 업데이트 (퍼센트 계산)
+      const totalRange = maxRange - minRange;
+      if (totalRange > 0) {
+        const leftPercent = ((minValue - minRange) / totalRange) * 100;
+        const rightPercent = ((maxValue - minRange) / totalRange) * 100;
+        
+        fill.style.left = leftPercent + '%';
+        fill.style.width = (rightPercent - leftPercent) + '%';
+      }
+      
+      updateFilter();
+    }
+    
+    // 범위 필터 업데이트
+    function updateFilter() {
+      const compMin = parseFloat(document.getElementById('compMin').value);
+      const compMax = parseFloat(document.getElementById('compMax').value);
+      const tuitionMin = parseInt(document.getElementById('tuitionMin').value);
+      const tuitionMax = parseInt(document.getElementById('tuitionMax').value);
+      const gradeMin = parseFloat(document.getElementById('gradeMin').value);
+      const gradeMax = parseFloat(document.getElementById('gradeMax').value);
+      
+      filterCompMin = Math.min(compMin, compMax);
+      filterCompMax = Math.max(compMin, compMax);
+      filterTuitionMin = Math.min(tuitionMin, tuitionMax) * 10000;
+      filterTuitionMax = Math.max(tuitionMin, tuitionMax) >= 1000
+        ? 999999999
+        : Math.max(tuitionMin, tuitionMax) * 10000;
+      filterGradeMin = Math.min(gradeMin, gradeMax);
+      filterGradeMax = Math.max(gradeMin, gradeMax);
+      
+      document.getElementById('compMinVal').textContent = fmtNum(filterCompMin);
+      document.getElementById('compMaxVal').textContent = fmtNum(filterCompMax);
+      document.getElementById('tuitionMinVal').textContent = Math.min(tuitionMin, tuitionMax) + '만원';
+      document.getElementById('tuitionMaxVal').textContent = Math.max(tuitionMin, tuitionMax) + '만원';
+      document.getElementById('gradeMinVal').textContent = fmtNum(filterGradeMin, 1);
+      document.getElementById('gradeMaxVal').textContent = fmtNum(filterGradeMax, 1);
+      
+      const inRange = ALL_DATA.filter(u => isInRange(u));
+      document.getElementById('filterResultCount').textContent = inRange.length;
+      render();
+    }
+    
+    // 필터 초기화
+    function resetFilter() {
+      const maxComp = Math.ceil(Math.max(...ALL_DATA.map(u => u.avgCompetition || 0)));
+      const maxGrade = Math.ceil(Math.max(...ALL_DATA.map(u => u.avgGrade || 0)));
+      
+      const compMinEl = document.getElementById('compMin');
+      const compMaxEl = document.getElementById('compMax');
+      const tuitionMinEl = document.getElementById('tuitionMin');
+      const tuitionMaxEl = document.getElementById('tuitionMax');
+      const gradeMinEl = document.getElementById('gradeMin');
+      const gradeMaxEl = document.getElementById('gradeMax');
+      
+      compMinEl.value = 0;
+      compMaxEl.value = maxComp;
+      tuitionMinEl.value = 0;
+      tuitionMaxEl.value = 1000;
+      gradeMinEl.value = 0;
+      gradeMaxEl.value = maxGrade > 0 ? maxGrade : 9;
+      
+      filterCompMin = 0; 
+      filterCompMax = maxComp;
+      filterTuitionMin = 0; 
+      filterTuitionMax = 999999999;
+      filterGradeMin = 0;
+      filterGradeMax = maxGrade > 0 ? maxGrade : 9;
+      
+      document.getElementById('compMinVal').textContent = '0';
+      document.getElementById('compMaxVal').textContent = fmtNum(maxComp);
+      document.getElementById('tuitionMinVal').textContent = '0만원';
+      document.getElementById('tuitionMaxVal').textContent = '1000만원';
+      document.getElementById('gradeMinVal').textContent = '0';
+      document.getElementById('gradeMaxVal').textContent = fmtNum(maxGrade > 0 ? maxGrade : 9);
+      
+      // 슬라이더 채우기 업데이트
+      setTimeout(() => {
+        updateRangeSlider('comp');
+        updateRangeSlider('tuition');
+        updateRangeSlider('grade');
+      }, 50);
+      
+      document.getElementById('filterResultCount').textContent = ALL_DATA.length;
+      render();
+    }
+    
+    // 등급 필터
+    function selectGrade(el, grade) {
+      filterGrade = grade;
+      document.querySelectorAll('.grade-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      const inRange = ALL_DATA.filter(u => isInRange(u));
+      document.getElementById('filterResultCount').textContent = inRange.length;
+      render();
+    }
+    function selectDegreeFilter(el, degree) {
+      currentDegree = degree;
+      document.querySelectorAll('.degree-filter-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      render();
+    }
+    
+    // degree 필터 적용
+    function matchesDegree(uni) {
+      if (!currentDegree) return true;
+      return uni.category === currentDegree;
+    }
+    
+    // 하단 모드 버튼
+    function selectBottomMode(el, mode) {
+      showCompetition = mode === 'competition';
+      showTuition = mode === 'tuition';
+      showRegion = mode === 'region';
+      
+      document.querySelectorAll('.bottom-mode-btn').forEach(b => {
+        b.classList.remove('active', 'active-red', 'active-purple', 'active-blue');
+      });
+      
+      if (mode === 'competition') {
+        el.classList.add('active-red');
+      } else if (mode === 'tuition') {
+        el.classList.add('active-purple');
+      } else if (mode === 'region') {
+        el.classList.add('active-blue');
+      } else {
+        el.classList.add('active');
+      }
+      
+      render();
+    }
+    
+    // 하단 필터 버튼
+    function selectBottomFilter(el, type, value) {
+      currentFilter = type;
+      currentValue = value;
+      
+      // 지역 필터 활성화
+      if (type === 'region') {
+        showRegion = true;
+      } else {
+        showRegion = false;
+      }
+      
+      document.querySelectorAll('.bottom-filter-btn').forEach(b => {
+        b.classList.remove('active', 'active-blue', 'active-orange');
+      });
+      
+      if (value === '인서울') {
+        el.classList.add('active-blue');
+      } else if (value === '지방') {
+        el.classList.add('active-orange');
+      } else {
+        el.classList.add('active');
+      }
+      
+      render();
+    }
+    
+    // 드롭다운 토글
+    function toggleFilterDropdown() {
+      const list = document.getElementById('filterList');
+      const arrow = document.getElementById('dropdownArrow');
+      if (!list) return;
+      const isOpen = list.classList.contains('open');
+      list.classList.toggle('open', !isOpen);
+      arrow.textContent = isOpen ? '▼' : '▲';
+    }
+    
+    // 필터 선택
+    function selectFilter(el, type, value, label) {
+      currentFilter = type;
+      currentValue = value;
+      
+      document.querySelectorAll('.filter-option').forEach(o => o.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('filterLabel').textContent = label;
+      
+      // 선택에 따라 버튼 색상 변경
+      const btn = document.getElementById('filterToggleBtn');
+      if (value === '인서울') {
+        btn.style.background = '#3b82f6';
+        btn.style.borderColor = '#3b82f6';
+        btn.style.color = '#fff';
+      } else if (value === '지방') {
+        btn.style.background = '#f59e0b';
+        btn.style.borderColor = '#f59e0b';
+        btn.style.color = '#fff';
+      } else {
+        // 전체, 국립, 사립은 흰색
+        btn.style.background = '#fff';
+        btn.style.borderColor = '#fff';
+        btn.style.color = '#000';
+      }
+      
+      render();
+    }
+    
+    // 필터 설정 (기존 호환용)
+    function setFilter(type, value) {
+      currentFilter = type;
+      currentValue = value || '';
+      render();
+    }
+    
+    // 검색창 애니메이션 플레이스홀더
+    const PLACEHOLDER_NAMES = ALL_DATA.map(u => u.name);
+    let placeholderIndex = 0;
+    let placeholderTimer = null;
+    let isSearching = false;
+
+    function showNextPlaceholder() {
+      if (isSearching) return;
+      const el = document.getElementById('placeholderText');
+      if (!el) return;
+
+      // 현재 텍스트 슬라이드 아웃
+      el.classList.add('out');
+      setTimeout(() => {
+        if (isSearching) return;
+        placeholderIndex = (placeholderIndex + 1) % PLACEHOLDER_NAMES.length;
+        el.textContent = PLACEHOLDER_NAMES[placeholderIndex];
+        el.classList.remove('out');
+      }, 300);
+    }
+
+    function startPlaceholderAnimation() {
+      const el = document.getElementById('placeholderText');
+      if (el) el.textContent = PLACEHOLDER_NAMES[0];
+      placeholderTimer = setInterval(showNextPlaceholder, 2000);
+    }
+
+    function stopPlaceholderAnimation() {
+      clearInterval(placeholderTimer);
+      const placeholder = document.getElementById('searchPlaceholder');
+      if (placeholder) placeholder.style.display = 'none';
+    }
+
+    function resumePlaceholderAnimation() {
+      const placeholder = document.getElementById('searchPlaceholder');
+      if (placeholder) placeholder.style.display = 'flex';
+      const el = document.getElementById('placeholderText');
+      if (el) {
+        el.classList.remove('out');
+        el.textContent = PLACEHOLDER_NAMES[placeholderIndex];
+      }
+      placeholderTimer = setInterval(showNextPlaceholder, 2000);
+    }
+
+    // 검색 입력 이벤트
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('focus', () => {
+      isSearching = true;
+      stopPlaceholderAnimation();
+    });
+
+    searchInput.addEventListener('blur', () => {
+      if (!searchInput.value.trim()) {
+        isSearching = false;
+        resumePlaceholderAnimation();
+      }
+    });
+
+    // 검색
+    let searchTimeout;
+
+    // 검색 점수 계산 (높을수록 우선)
+    function searchScore(uni, query) {
+      const name = uni.name.toLowerCase();
+      const campus = uni.campus.toLowerCase();
+      let score = 0;
+
+      // 1. 이름이 정확히 일치
+      if (name === query) score += 1000;
+      // 2. 이름이 query로 시작
+      else if (name.startsWith(query)) score += 500;
+      // 3. 이름에 query가 포함 (앞쪽일수록 높은 점수)
+      else {
+        const idx = name.indexOf(query);
+        if (idx !== -1) score += 300 - idx * 5;
+      }
+
+      // 4. 캠퍼스명 포함
+      const campusIdx = campus.indexOf(query);
+      if (campusIdx !== -1) score += 100 - campusIdx * 2;
+
+      // 5. 글자 수 일치 비율 (query 길이 / name 길이)
+      score += Math.round((query.length / name.length) * 100);
+
+      return score;
+    }
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+      clearTimeout(searchTimeout);
+      const query = e.target.value.trim().toLowerCase();
+      
+      if (!query) {
+        closeSearchPanel();
+        closeSearchDropdown();
+        return;
+      }
+      
+      searchTimeout = setTimeout(() => {
+        const results = ALL_DATA
+          .filter(u => u.name.toLowerCase().includes(query) || u.campus.toLowerCase().includes(query))
+          .map(u => ({ uni: u, score: searchScore(u, query) }))
+          .sort((a, b) => b.score - a.score)
+          .map(item => item.uni);
+        showSearchDropdown(results);
+      }, 150);
+    });
+    
+    // 엔터 → 왼쪽 패널 열기
+    document.getElementById('searchInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        const query = e.target.value.trim().toLowerCase();
+        if (!query) return;
+        const results = ALL_DATA
+          .filter(u => u.name.toLowerCase().includes(query) || u.campus.toLowerCase().includes(query))
+          .map(u => ({ uni: u, score: searchScore(u, query) }))
+          .sort((a, b) => b.score - a.score)
+          .map(item => item.uni);
+        closeSearchDropdown();
+        showSearchResults(results);
+      }
+      if (e.key === 'Escape') {
+        closeSearchDropdown();
+        closeSearchPanel();
+      }
+    });
+    
+    // 검색 드롭다운 표시
+    function showSearchDropdown(results) {
+      const dropdown = document.getElementById('searchDropdown');
+      
+      if (!results.length) {
+        dropdown.innerHTML = '<div class="search-dropdown-empty">검색 결과 없음</div>';
+      } else {
+        dropdown.innerHTML = results.map(uni => `
+          <div class="search-dropdown-item" onclick="selectDropdownItem(${uni.id})">
+            <span>${uni.name}</span>
+            <span class="item-sub">${uni.campus} · ${uni.type}</span>
+          </div>
+        `).join('');
+      }
+      
+      dropdown.classList.add('open');
+    }
+    
+    // 드롭다운 항목 클릭 → 바로 상세 패널
+    function selectDropdownItem(id) {
+      const uni = ALL_DATA.find(u => u.id === id);
+      if (!uni) return;
+      document.getElementById('searchInput').value = uni.name;
+      closeSearchDropdown();
+      showDetail(uni);
+    }
+    
+    // 드롭다운 닫기
+    function closeSearchDropdown() {
+      document.getElementById('searchDropdown').classList.remove('open');
+    }
+    
+    // 외부 클릭 시 드롭다운 닫기
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.search-wrapper')) {
+        closeSearchDropdown();
+      }
+    });
+    
+    // 검색 결과 표시
+    function showSearchResults(results) {
+      const panel = document.getElementById('searchPanel');
+      const resultsDiv = document.getElementById('searchResults');
+      const countSpan = document.getElementById('resultCount');
+      
+      countSpan.textContent = results.length;
+      
+      resultsDiv.innerHTML = results.map(uni => `
+        <div class="search-item" onclick="showDetail(ALL_DATA.find(u => u.id === ${uni.id}))">
+          <div class="search-item-name">${uni.name}</div>
+          <div class="search-item-info">${uni.campus} · ${uni.type} · ${uni.region}</div>
+        </div>
+      `).join('');
+      
+      // 대학 리스트 패널이 열려있으면 닫기
+      closeUniversityList();
+      
+      panel.classList.add('open');
+      document.getElementById('filterPanel').classList.add('search-open');
+      document.querySelector('.degree-filter-bar').classList.add('search-open');
+    }
+    
+    function closeSearchPanel() {
+      document.getElementById('searchPanel').classList.remove('open');
+      document.getElementById('filterPanel').classList.remove('search-open');
+      
+      // 대학 리스트가 열려있지 않으면 degree 필터도 원위치
+      if (!document.getElementById('universityListPanel').classList.contains('open')) {
+        document.querySelector('.degree-filter-bar').classList.remove('search-open');
+      }
+    }
+    
+    // 상세 정보 표시
+    function showDetail(uni) {
+      const panel = document.getElementById('detailPanel');
+      const title = document.getElementById('detailTitle');
+      const subtitle = document.getElementById('detailSubtitle');
+      const content = document.getElementById('detailContent');
+      
+      // 필터 패널 닫기
+      closeFilterPanel();
+      
+      // 3D 모드였다면 저장
+      if (is3DMode) {
+        was3DBeforeSelection = true;
+      }
+      
+      // 선택된 대학 ID 저장
+      selectedUniId = uni.id;
+      
+      // 먼저 3D 상태에서 렌더링 (다른 건물 숨김)
+      render();
+      
+      // 그 다음 2D로 전환 (건물이 줄어드는 애니메이션)
+      setTimeout(() => {
+        if (was3DBeforeSelection) {
+          is3DMode = false;
+          const btn = document.getElementById('viewToggleBtn');
+          btn.classList.remove('active-3d');
+          btn.textContent = '2D 보기';
+          render();
+        }
+      }, 300);
+      
+      title.textContent = uni.name;
+      subtitle.textContent = uni.campus;
+      
+      // 카메라 이동 (2D 모드로)
+      if (deckInstance) {
+        deckInstance.setProps({
+          initialViewState: {
+            longitude: uni.lng,
+            latitude: uni.lat,
+            zoom: 12,
+            pitch: 0,
+            bearing: 0,
+            transitionDuration: 1000,
+            transitionInterpolator: new deck.FlyToInterpolator()
+          }
+        });
+      }
+      
+      // 렌더링 (카메라 이동 후)
+      setTimeout(() => {
+        render();
+      }, 100);
+      
+      const deptHTML = '';
+      
+      content.innerHTML = `
+        <div class="detail-section">
+          <div class="detail-section-title">기본 정보</div>
+          <div class="detail-row">
+            <div class="detail-label">설립형태</div>
+            <div class="detail-value">${uni.type}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">대학 유형</div>
+            <div class="detail-value">${uni.category || '-'}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">개교기념일</div>
+            <div class="detail-value">${uni.founded}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">주소</div>
+            <div class="detail-value">${uni.address}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">캠퍼스 면적</div>
+            <div class="detail-value">${uni.landSize ? (uni.landSize / 10000).toFixed(0) + 'ha (' + (uni.landSize / 3.3).toFixed(0) + '평)' : '-'}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">위치</div>
+            <div class="detail-value">${uni.lat.toFixed(4)}, ${uni.lng.toFixed(4)}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">홈페이지</div>
+            <div class="detail-value">${uni.website && uni.website !== '-' ? `<a href="${uni.website.startsWith('http') ? uni.website : 'https://' + uni.website}" target="_blank" rel="noopener noreferrer" class="detail-link">${uni.website}</a>` : '-'}</div>
+          </div>
+        </div>
+        
+        <div class="detail-section">
+          <div class="detail-section-title">입시 정보</div>
+          <div class="detail-row">
+            <div class="detail-label">평균 경쟁률</div>
+            <div class="detail-value">${uni.avgCompetition && uni.avgCompetition > 0 ? uni.avgCompetition.toFixed(2) + ':1' : '-'}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">평균 등급</div>
+            <div class="detail-value">${uni.avgGrade && uni.avgGrade > 0 ? fmtNum(uni.avgGrade, 2) + '등급' : '-'}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">학기 등록금</div>
+            <div class="detail-value">${uni.tuition === 0 ? '무료' : uni.tuition ? uni.tuition.toLocaleString() + '원' : '-'}</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">모집 정원</div>
+            <div class="detail-value">${uni.recruitmentQuota && uni.recruitmentQuota > 0 ? uni.recruitmentQuota.toLocaleString() + '명' : '-'}</div>
+          </div>
+        </div>
+      `;
+      
+      panel.classList.add('open');
+      document.querySelector('.degree-filter-bar').classList.add('panel-open');
+      closeSearchPanel();
+    }
+    
+    // 상세 패널 닫기
+    function closeDetailPanel() {
+      document.getElementById('detailPanel').classList.remove('open');
+      document.querySelector('.degree-filter-bar').classList.remove('panel-open');
+      selectedUniId = null;
+      
+      // 선택 전에 3D 모드였다면 다시 3D로 복귀
+      if (was3DBeforeSelection && !is3DMode) {
+        is3DMode = true;
+        const btn = document.getElementById('viewToggleBtn');
+        btn.classList.add('active-3d');
+        btn.textContent = '3D 보기';
+        deckInstance.setProps({
+          initialViewState: {
+            ...currentViewState,
+            pitch: 45,
+            transitionDuration: 600
+          }
+        });
+      }
+      
+      render();
+    }
+    
+    function resetToDefaultView() {
+      if (selectedUniId !== null) closeDetailPanel();
+      if (!deckInstance) return;
+      deckInstance.setProps({
+        initialViewState: {
+          longitude: 127.0,
+          latitude: 37.5,
+          zoom: 7,
+          pitch: 45,
+          bearing: 0,
+          transitionDuration: 800,
+          transitionInterpolator: new deck.FlyToInterpolator()
+        }
+      });
+    }
+    
+    // 바탕 클릭 시 패널 닫기 (드래그 제외)
+    let mouseDownPos = null;
+    document.getElementById('map').addEventListener('mousedown', function(e) {
+      mouseDownPos = { x: e.clientX, y: e.clientY };
+    });
+    document.getElementById('map').addEventListener('click', function(e) {
+      if (!mouseDownPos) return;
+      const dx = Math.abs(e.clientX - mouseDownPos.x);
+      const dy = Math.abs(e.clientY - mouseDownPos.y);
+      // 5px 이상 움직였으면 드래그로 간주 → 닫지 않음
+      if (dx > 5 || dy > 5) return;
+      
+      // 패널들 닫기
+      closeSearchPanel();
+      closeUniversityList();
+      if (selectedUniId !== null) closeDetailPanel();
+    });
+    
+    document.getElementById('logoLink').addEventListener('click', function(e) {
+      e.preventDefault();
+      resetToDefaultView();
+    });
+    
+    // 2D/3D 토글
+    function toggle3DView() {
+      is3DMode = !is3DMode;
+      const btn = document.getElementById('viewToggleBtn');
+      
+      if (is3DMode) {
+        btn.classList.add('active-3d');
+        btn.textContent = '3D 보기';
+        // 3D 뷰로 전환
+        deckInstance.setProps({
+          initialViewState: {
+            ...currentViewState,
+            pitch: 45,
+            transitionDuration: 600
+          }
+        });
+      } else {
+        btn.classList.remove('active-3d');
+        btn.textContent = '2D 보기';
+        // 2D 뷰로 전환 (pitch 0)
+        deckInstance.setProps({
+          initialViewState: {
+            ...currentViewState,
+            pitch: 0,
+            transitionDuration: 600
+          }
+        });
+      }
+      
+      render();
+    }
+    
+    deckInstance = new deck.DeckGL({
+      container: 'map',
+      mapStyle: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      initialViewState: {
+        longitude: 127.0,
+        latitude: 37.5,
+        zoom: 7,
+        pitch: 45,
+        minZoom: 6,
+        maxZoom: 14
+      },
+      controller: {
+        scrollZoom: { speed: 0.005 },
+        dragPan: { inertia: 150 }
+      },
+      onViewStateChange: function({viewState}) {
+        viewState.longitude = Math.max(124, Math.min(132, viewState.longitude));
+        viewState.latitude = Math.max(33, Math.min(39, viewState.latitude));
+        viewState.zoom = Math.max(6, Math.min(14, viewState.zoom));
+        currentViewState = viewState;
+        updateLabels();
+        return viewState;
+      },
+      onClick: function(info) {
+        if (!info.object) {
+          resetToDefaultView();
+        }
+      },
+      layers: []
+    });
+    
+    render();
+    
+    // HTML 빌보드 레이블 업데이트
+    function updateLabels() {
+      const container = document.getElementById('labelContainer');
+      const zoom = currentViewState.zoom || 7;
+      
+      // zoom 11 이상일 때만 레이블 표시
+      if (zoom < 11) {
+        container.innerHTML = '';
+        return;
+      }
+      
+      const filtered = getFiltered();
+      const canvas = document.querySelector('#map canvas');
+      if (!canvas) return;
+      
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      
+      container.innerHTML = filtered.map(uni => {
+        // 위경도 → 화면 좌표 변환
+        const viewport = deckInstance.getViewports()[0];
+        if (!viewport) return '';
+        
+        const [x, y] = viewport.project([uni.lng, uni.lat]);
+        if (x < 0 || x > w || y < 0 || y > h) return '';
+        
+        const isSelected = uni.id === selectedUniId;
+        const style = `left:${x}px;top:${y - 40}px;transform:translateX(-50%);`;
+        const cls = isSelected ? 'label label-selected' : 'label';
+        
+        return `<div class="${cls}" style="${style}">${uni.name}</div>`;
+      }).join('');
+    }
+    
+    console.log('✅ 초기화 완료');
+    startPlaceholderAnimation();
+    loadDB();
+  </script>
+</body>
+</html>
