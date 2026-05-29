@@ -38,6 +38,11 @@ need node
 need npm
 need python3
 
+# 외부에서 상속된 포트 환경변수를 제거한다.
+# 안 그러면 모든 팀이 같은 포트로 충돌한다 — 특히 team6 서버의 dotenv는
+# 기존 process.env를 덮어쓰지 않아 전역 SERVER_PORT 값이 그대로 새어든다.
+unset SERVER_PORT CLIENT_PORT PORT
+
 # ── 프로세스 추적 / 정리 ───────────────────────────────
 PIDS=()
 LABELS=()
@@ -86,6 +91,16 @@ free_ports() {
 }
 
 # ── 헬퍼 ──────────────────────────────────────────────
+# .env 가 없으면 .env.example 로부터 생성한다 (팀별 포트 분리 보장).
+# 기존 .env(실제 키 포함)는 절대 덮어쓰지 않는다.
+ensure_env() {
+  local dir="$1" label="$2"
+  if [ -f "$dir/.env.example" ] && [ ! -f "$dir/.env" ]; then
+    cp "$dir/.env.example" "$dir/.env"
+    info "[$label] .env 생성 (.env.example 복사)"
+  fi
+}
+
 # node_modules 가 없으면 npm install. 실패하면 1 반환.
 ensure_deps() {
   local dir="$1" label="$2"
@@ -122,6 +137,8 @@ launch() {
 
 # ══════════════════════════════════════════════════════
 info "전체 데모 서버를 개발 모드로 실행합니다. (중지: Ctrl+C)"
+# .env 없는 팀은 .env.example 로 생성 (포트 분리)
+for t in team1 team4 team6 team7; do ensure_env "$ROOT/$t" "$t"; done
 [ "${NO_PORT_CLEAN:-0}" = "1" ] || free_ports
 echo
 
