@@ -12,6 +12,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       port: clientPort,
+      host: true, // 0.0.0.0 바인딩 — 외부(EC2 등)에서 접속 허용
+      allowedHosts: true, // 퍼블릭 도메인(ec2-*.compute.amazonaws.com 등) 접속 허용
       proxy: {
         '/api': {
           target: `http://localhost:${serverPort}`,
