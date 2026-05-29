@@ -502,39 +502,30 @@
     </main>
 
     <script>
-      const OPENROUTER_API_KEY = "YOUR_OPENROUTER_API_KEY";
-      const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-      const FREE_MODELS = [
-        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-        "deepseek/deepseek-v4-flash:free",
-        "openai/gpt-oss-20b:free",
-        "openai/gpt-oss-120b:free",
-        "moonshotai/kimi-k2.6:free",
-      ];
-
-      async function callAI(messages) {
-        for (const model of FREE_MODELS) {
-          const res = await fetch(OPENROUTER_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            },
-            body: JSON.stringify({ model, messages }),
-          });
-          const data = await res.json();
-          if (res.status === 429) {
-            console.warn(`${model} rate limited, 다음 모델 시도...`);
-            continue;
-          }
-          if (!res.ok)
-            throw new Error(`API 오류 ${res.status}: ${JSON.stringify(data)}`);
-          console.log(`사용 모델: ${model}`);
-          return data.choices?.[0]?.message?.content || "";
-        }
-        throw new Error(
-          "모든 모델이 rate limit에 걸렸습니다. 잠시 후 다시 시도해주세요.",
+      // HTML 이스케이프 — AI/에러 출력을 innerHTML에 넣기 전 XSS 방지
+      const esc = (s) =>
+        String(s ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
         );
+
+      // API 키는 서버 .env에만 존재. 브라우저는 서버 프록시(/api/openrouter)만 호출한다.
+      async function callAI(messages) {
+        const res = await fetch("/api/openrouter", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `API 오류 ${res.status}`);
+        return data.content || "";
       }
 
       let currentLevel = "beginner";
@@ -666,18 +657,18 @@ ${levelLabels[currentLevel]} 수준 학습자를 위한 언리얼 엔진 실습 
               <div class="mission-card-meta">
                 <span class="mission-badge-level ${levelBadge[currentLevel]}">${levelLabels[currentLevel]}</span>
                 <span class="badge-ai">✨ AI 생성</span>
-                <span style="font-size:0.75rem; color:#718096; background:#EDF2F7; padding:2px 10px; border-radius:12px;">${mission.category}</span>
+                <span style="font-size:0.75rem; color:#718096; background:#EDF2F7; padding:2px 10px; border-radius:12px;">${esc(mission.category)}</span>
               </div>
-              <h4>${mission.title}</h4>
-              <p>${mission.desc}</p>
+              <h4>${esc(mission.title)}</h4>
+              <p>${esc(mission.desc)}</p>
               <div class="mission-tip-box">
                 <span>💡</span>
-                <span>${mission.tip}</span>
+                <span>${esc(mission.tip)}</span>
               </div>
             </div>`;
         } catch (e) {
           console.error(e);
-          area.innerHTML = `<div class="mission-loading" style="color:#E53E3E;">미션 생성에 실패했습니다.<br><small style="font-size:0.75rem;">${e.message}</small></div>`;
+          area.innerHTML = `<div class="mission-loading" style="color:#E53E3E;">미션 생성에 실패했습니다.<br><small style="font-size:0.75rem;">${esc(e.message)}</small></div>`;
         }
       }
 
@@ -774,11 +765,11 @@ ${levelLabels[currentLevel]} 수준 학습자를 위한 언리얼 엔진 실습 
           feedbackArea.innerHTML = `
             <div class="feedback-good">
               <div class="feedback-good-title">✅ 잘한 점</div>
-              <p>${fb.good}</p>
+              <p>${esc(fb.good)}</p>
             </div>
             <div class="feedback-improve">
               <div class="feedback-improve-title">🔧 개선할 점</div>
-              <p>${fb.improve}</p>
+              <p>${esc(fb.improve)}</p>
             </div>
             <div class="feedback-score-row">
               <div class="feedback-score-num">${Math.round(fb.score)}점</div>
@@ -787,7 +778,7 @@ ${levelLabels[currentLevel]} 수준 학습자를 위한 언리얼 엔진 실습 
             <button class="retry-link" onclick="resetSubmit()">다시 제출하기</button>`;
         } catch (e) {
           console.error(e);
-          feedbackArea.innerHTML = `<div class="mission-loading" style="color:#E53E3E;">판정에 실패했습니다.<br><small style="font-size:0.75rem; word-break:break-all;">${e.message}</small></div>`;
+          feedbackArea.innerHTML = `<div class="mission-loading" style="color:#E53E3E;">판정에 실패했습니다.<br><small style="font-size:0.75rem; word-break:break-all;">${esc(e.message)}</small></div>`;
         }
 
         btn.textContent = "AI 판정 받기 →";

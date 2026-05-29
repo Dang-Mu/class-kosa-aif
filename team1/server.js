@@ -16,7 +16,24 @@ if (fs.existsSync(envPath)) {
 }
 
 const API_KEY = process.env.GEMINI_API_KEY || "";
-const PORT = 3500;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
+// 포트는 .env(SERVER_PORT)에서 읽는다 — 폴더별 포트 분리
+const PORT = process.env.SERVER_PORT || 4001;
+
+// 정적 파일 서빙 루트 (경로 탐색 차단 기준)
+const PUBLIC_ROOT = fs.realpathSync(__dirname);
+
+// mission.html에서 사용하던 OpenRouter 무료 모델 (서버에서 순차 시도)
+const FREE_MODELS = [
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "deepseek/deepseek-v4-flash:free",
+  "openai/gpt-oss-20b:free",
+  "openai/gpt-oss-120b:free",
+  "moonshotai/kimi-k2.6:free",
+];
+
+// 로컬 개발용 origin만 CORS 허용 (오픈 프록시 방지)
+const ALLOWED_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -29,14 +46,132 @@ const MIME = {
 };
 
 const server = http.createServer((req, res) => {
-  // CORS 헤더 허용
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  // CORS: 로컬 origin만 허용 (동일 출처 요청은 origin 헤더가 없어 그대로 동작)
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGIN.test(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);
     res.end();
+    return;
+  }
+
+  // OpenRouter API 프록시 (mission.html에서 사용) — 키는 서버 .env에만 존재
+  if (req.method === "POST" && req.url === "/api/openrouter") {
+    let body = "";
+    let aborted = false;
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 2_000_000) {
+        // 2MB 제한 (이미지 base64 포함 고려)
+        aborted = true;
+        res.writeHead(413, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "요청 본문이 너무 큽니다 (최대 2MB)" }));
+        req.destroy();
+      }
+    });
+    req.on("end", () => {
+      if (aborted) return;
+      if (!OPENROUTER_API_KEY) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error: "OPENROUTER_API_KEY가 설정되지 않았습니다 (.env 확인)",
+          }),
+        );
+        return;
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(body);
+      } catch (e) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON" }));
+        return;
+      }
+      const messages = Array.isArray(parsed.messages) ? parsed.messages : null;
+      if (!messages) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "messages 배열이 필요합니다" }));
+        return;
+      }
+
+      // 무료 모델을 순차 시도 (429면 다음 모델로)
+      const tryModel = (idx) => {
+        if (idx >= FREE_MODELS.length) {
+          res.writeHead(503, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              error: "모든 모델이 rate limit에 걸렸습니다. 잠시 후 다시 시도해주세요.",
+            }),
+          );
+          return;
+        }
+        const orBody = JSON.stringify({ model: FREE_MODELS[idx], messages });
+        const apiReq = https.request(
+          {
+            hostname: "openrouter.ai",
+            path: "/api/v1/chat/completions",
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+              "Content-Length": Buffer.byteLength(orBody),
+            },
+          },
+          (apiRes) => {
+            let data = "";
+            apiRes.on("data", (chunk) => (data += chunk));
+            apiRes.on("end", () => {
+              if (apiRes.statusCode === 429) {
+                tryModel(idx + 1);
+                return;
+              }
+              let json;
+              try {
+                json = JSON.parse(data);
+              } catch (e) {
+                res.writeHead(502, { "Content-Type": "application/json" });
+                res.end(
+                  JSON.stringify({
+                    error: "OpenRouter 응답 파싱 실패",
+                    raw: data.slice(0, 300),
+                  }),
+                );
+                return;
+              }
+              if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
+                res.writeHead(apiRes.statusCode, {
+                  "Content-Type": "application/json",
+                });
+                res.end(
+                  JSON.stringify({
+                    error: `API 오류 ${apiRes.statusCode}`,
+                    detail: json,
+                  }),
+                );
+                return;
+              }
+              const content = json.choices?.[0]?.message?.content || "";
+              res.writeHead(200, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ content }));
+            });
+          },
+        );
+        apiReq.on("error", (e) => {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: e.message }));
+        });
+        apiReq.write(orBody);
+        apiReq.end();
+      };
+      tryModel(0);
+    });
     return;
   }
 
@@ -156,9 +291,23 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 정적 파일 서빙
-  let reqUrl = req.url === "/" ? "/index.html" : req.url;
-  let filePath = path.join(__dirname, reqUrl);
+  // 정적 파일 서빙 (경로 탐색 차단)
+  let reqPath = decodeURIComponent((req.url || "/").split("?")[0]);
+  if (reqPath === "/") reqPath = "/index.html";
+  const requested = path.normalize(reqPath).replace(/^[/\\]+/, "");
+
+  // dotfile/dotdir(.env, .git 등) 및 상위 경로 탈출 차단
+  if (requested.split(/[/\\]/).some((seg) => seg.startsWith("."))) {
+    res.writeHead(403);
+    res.end("Forbidden");
+    return;
+  }
+  const filePath = path.resolve(PUBLIC_ROOT, requested);
+  if (filePath !== PUBLIC_ROOT && !filePath.startsWith(PUBLIC_ROOT + path.sep)) {
+    res.writeHead(403);
+    res.end("Forbidden");
+    return;
+  }
   const ext = path.extname(filePath);
 
   fs.readFile(filePath, (err, data) => {
