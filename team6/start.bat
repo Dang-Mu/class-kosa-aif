@@ -1,5 +1,12 @@
 @echo off
 chcp 65001 > nul
+
+:: .env에서 포트 읽기 (폴더별 포트 분리)
+set SERVER_PORT=4000
+for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
+  if "%%a"=="SERVER_PORT" set SERVER_PORT=%%b
+)
+
 echo ========================================
 echo   도둑잡기 온라인 - 통합 실행
 echo ========================================
@@ -29,10 +36,10 @@ cd ..
 
 echo.
 echo ========================================
-echo   서버 시작 중... (포트 4000)
-echo   브라우저: http://localhost:4000
+echo   서버 시작 중... (포트 %SERVER_PORT%)
+echo   브라우저: http://localhost:%SERVER_PORT%
 echo ========================================
 echo.
 
-start http://localhost:4000
+start http://localhost:%SERVER_PORT%
 node server/index.js
