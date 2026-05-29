@@ -265,5 +265,5 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.SERVER_PORT || process.env.PORT || 4000;
+const PORT = process.env.SERVER_PORT || process.env.PORT || 4006;
 server.listen(PORT, () => console.log(`\n🃏 도둑잡기 서버: http://localhost:${PORT}\n`));
