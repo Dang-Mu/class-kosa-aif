@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>언리얼 튜토리얼 - 개발명세서</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html {
+        min-height: 100%;
+      }
+
+      body {
+        background: linear-gradient(
+          160deg,
+          #eef6f1 0%,
+          #f0f5f2 50%,
+          #edf2f7 100%
+        );
+        min-height: 100vh;
+        font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
+        font-size: 15px;
+        color: #222;
+        padding: 0 0 40px;
+      }
+      .container {
+        max-width: 760px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 24px 20px 0;
+      }
+
+      /* ── 카드 밖 텍스트 ── */
+      .between-text {
+        font-size: 13px;
+        color: #555;
+        padding: 0 4px;
+      }
+
+      /* ── 일반 섹션 카드 (왼쪽 초록 보더) ── */
+      .card {
+        background: linear-gradient(135deg, #ffffff 0%, #f2faf5 100%);
+        border-radius: 12px;
+        padding: 28px 32px;
+        box-shadow:
+          0 4px 6px rgba(0, 0, 0, 0.05),
+          0 10px 24px rgba(60, 140, 90, 0.08);
+        border-left: 5px solid #7ec8a0;
+        transition: box-shadow 0.2s ease;
+      }
+
+      .card:hover {
+        box-shadow:
+          0 6px 12px rgba(0, 0, 0, 0.07),
+          0 16px 32px rgba(60, 140, 90, 0.16);
+      }
+
+      /* ── 강조 섹션 카드 (섹션 1용) ── */
+      .card-featured {
+        background: linear-gradient(180deg, #e8f7ef 0%, #f5fbf7 100%);
+        border-radius: 12px;
+        padding: 28px 32px;
+        box-shadow:
+          0 4px 6px rgba(0, 0, 0, 0.05),
+          0 10px 24px rgba(60, 140, 90, 0.1);
+        border: 4px solid #7ec8a0;
+        transition: box-shadow 0.2s ease;
+      }
+
+      .card-featured:hover {
+        box-shadow:
+          0 6px 12px rgba(0, 0, 0, 0.07),
+          0 16px 32px rgba(60, 140, 90, 0.22);
+      }
+
+      .card-featured h2 {
+        font-size: 17px;
+        font-weight: 700;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #8ecfaa;
+        color: #111;
+      }
+
+      .card-featured p {
+        line-height: 1.85;
+        margin-bottom: 12px;
+        color: #333;
+      }
+
+      .card-featured p:last-child {
+        margin-bottom: 0;
+      }
+
+      .card-featured ul,
+      .card-featured ol {
+        padding-left: 20px;
+        margin-bottom: 12px;
+      }
+
+      .card-featured ul li,
+      .card-featured ol li {
+        line-height: 1.9;
+        margin-bottom: 5px;
+      }
+
+      .card h2 {
+        font-size: 17px;
+        font-weight: 700;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #c8e6d4;
+        color: #111;
+      }
+
+      .card p {
+        line-height: 1.85;
+        margin-bottom: 12px;
+        color: #333;
+      }
+
+      .card p:last-child {
+        margin-bottom: 0;
+      }
+
+      .card ul,
+      .card ol {
+        padding-left: 24px;
+        margin-bottom: 12px;
+      }
+
+      .card ul li,
+      .card ol li {
+        line-height: 1.9;
+        margin-bottom: 5px;
+      }
+
+      .card ul {
+        padding-left: 20px;
+      }
+
+      .card ul li strong,
+      .card ol li strong {
+        font-weight: 700;
+      }
+
+      /* 인라인 코드 */
+      code {
+        background: #f0f0f0;
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-family: monospace;
+        color: #c0392b;
+        font-size: 13px;
+      }
+
+      /* 인라인 강조 배지 */
+      .badge {
+        display: inline-block;
+        background: #e4f5ec;
+        color: #2a7a50;
+        border-radius: 4px;
+        padding: 1px 7px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-left: 4px;
+      }
+
+      /* 표 */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
+        margin-bottom: 16px;
+        font-size: 13px;
+      }
+
+      table th {
+        background: #edf7f1;
+        text-align: left;
+        padding: 10px 14px;
+        border-bottom: 2px solid #b0dcc0;
+        color: #2a5a3a;
+        font-weight: 600;
+      }
+
+      table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #eee;
+        color: #333;
+        vertical-align: top;
+      }
+
+      table tr:last-child td {
+        border-bottom: none;
+      }
+
+      table tr:nth-child(even) td {
+        background: #f5fbf7;
+      }
+
+      .note {
+        margin-top: 12px;
+        color: #444;
+        line-height: 1.8;
+      }
+
+      /* ── 헤더 배경 블록 ── */
+      .header-bg {
+        background: #ffffff;
+        width: 100%;
+        padding: 36px 20px 28px;
+        margin-bottom: 0;
+      }
+
+      /* ── 헤더 제목 ── */
+      .page-header {
+        max-width: 760px;
+        margin: 0 auto;
+        text-align: left;
+        padding: 20px 20px 10px;
+      }
+
+      .page-header h1 {
+        font-size: 28px;
+        font-weight: 800;
+        color: #2a6e48;
+        letter-spacing: -0.5px;
+        margin-bottom: 10px;
+      }
+
+      .page-header h1::after {
+        content: "";
+        display: block;
+        height: 4px;
+        background: linear-gradient(90deg, #7ec8a0, #c8ead8);
+        border-radius: 2px;
+        margin-top: 8px;
+        width: 60px;
+      }
+
+      .page-header .page-subtitle {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 12px;
+        line-height: 1.6;
+      }
+
+      .page-header .tag-list {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .page-header .tag {
+        display: inline-block;
+        background: #f2fbf6;
+        color: #4a9e70;
+        border: 1px solid #c0e8d0;
+        border-radius: 20px;
+        padding: 3px 12px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      /* ── 호버 사이드바 ── */
+      .sidebar {
+        position: fixed;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+        z-index: 100;
+        background: #ffffff;
+        border-radius: 0 12px 12px 0;
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.1);
+        padding: 20px 16px;
+        width: 160px;
+        opacity: 0.5;
+      }
+      .sidebar:hover {
+        opacity: 1;
+      }
+      .sidebar a:hover {
+        font-weight: bold;
+      }
+      .sidebar-tab {
+        display: none;
+      }
+
+      .sidebar-panel {
+        width: 100%;
+        opacity: 1;
+      }
+
+      .sidebar-panel h3 {
+        font-size: 12px;
+        font-weight: 700;
+        color: #4a9e70;
+        margin-bottom: 12px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+
+      .sidebar-panel a {
+        display: block;
+        font-size: 13px;
+        color: #333;
+        text-decoration: none;
+        padding: 6px 4px;
+        border-radius: 6px;
+        transition:
+          background 0.15s,
+          color 0.15s;
+        line-height: 1.4;
+      }
+
+      .sidebar-panel a:hover {
+        background: #eef7f2;
+        color: #2a7a50;
+      }
+
+      /* 섹션 구분선 */
+      .section-divider {
+        border: none;
+        border-top: 1px solid #d0d4e0;
+        margin: 4px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 고정 사이드바 -->
+    <div class="sidebar">
+      <div class="sidebar-panel">
+        <h3>목차</h3>
+        <a href="#section1">1. 한줄 요약</a>
+        <a href="#section2">2. 시스템 구조</a>
+        <a href="#section3">3. 학습 방법</a>
+        <a href="#section4">4. 문제 난이도</a>
+        <a href="#section5">5. 문제 구성</a>
+        <a href="#section6">6. 앞으로 더 추가할 방향</a>
+      </div>
+    </div>
+    <!-- 헤더 배경 블록 (전체 너비) -->
+    <div class="header-bg">
+      <div class="page-header">
+        <h1>언리얼 엔진은 방대하고 복잡해 - 개발 명세서</h1>
+        <p class="page-subtitle">
+          현재 구현된 서비스를 그대로 설명하는 개발 명세서입니다.
+        </p>
+        <div class="tag-list">
+          <span class="tag">📄 개발명세서</span>
+          <span class="tag">🗓 2026</span>
+          <span class="tag">🎮 언리얼 엔진 5</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <!-- 섹션 1 -->
+      <div class="card-featured" id="section1">
+        <h2>1. 한줄 요약</h2>
+        <p>
+          <strong>언리얼 엔진 5</strong>을 이해하기 쉽게 돕는
+          <strong>맞춤형 학습 웹 기반 플랫폼</strong>
+        </p>
+        <p>
+          유저를 분석하여 현재 수준과 성향을 분석하여
+          <strong>최적의 성장</strong>을 도움.
+        </p>
+      </div>
+
+      <!-- 섹션 2 -->
+      <div class="card" id="section2">
+        <h2>2. 시스템 구조</h2>
+        <p>서비스는 아래와 같은 구조로 동작합니다.</p>
+        <ul>
+          <li><strong>프론트엔드</strong>: HTML / CSS</li>
+          <li>
+            <strong>AI</strong>: Google Gemma 4 31B (맞춤 학습 추천 및 분석)
+          </li>
+        </ul>
+        <p>AI가 분석해 맞춤형 콘텐츠를 제공합니다.</p>
+      </div>
+
+      <!-- 섹션 3 (표 포함) -->
+      <div class="card" id="section3">
+        <h2>3. 학습 방법</h2>
+        <p>이 플랫폼에서 지원하는 학습 방법에 대해서.</p>
+        <ul>
+          <li>
+            <strong>맞춤형 퀘스트 보드</strong> : 수준에 맞춰
+            <strong>매일/매주 단위의 직관적인 게임형 미션</strong>을 부여합니다.
+          </li>
+          <li>
+            <strong>AI를 활용한 맞춤형 퀘스트</strong> : AI를 이용해
+            <strong>심화 과정</strong>을 배울 수 있게 <strong>미션</strong>을
+            부여합니다.
+          </li>
+        </ul>
+      </div>
+
+      <!-- 섹션 4 -->
+      <div class="card" id="section4">
+        <h2>4. 문제 난이도</h2>
+        <ul>
+          <li>
+            <strong>입문</strong> : 언리얼 엔진 5 <strong>입문자들</strong>을
+            위한 쉬운 난이도.
+          </li>
+          <li>
+            <strong>중급</strong> : 언리얼 엔진 5에 익숙해진
+            <strong>숙련자들</strong>을 위한 난이도.
+          </li>
+          <li>
+            <strong>고급</strong> :
+            <strong>"내 인생이 언리얼 엔진 5다"</strong> 하는 사람들을 위한
+            난이도.
+          </li>
+        </ul>
+      </div>
+
+      <!-- 섹션 5 (문제 구성) -->
+      <div class="card" id="section5">
+        <h2>5. 문제 구성</h2>
+        <ul>
+          <li>
+            <strong>입문</strong> : <strong>언리얼 엔진 5</strong> 기본 파트
+            활용, <strong>랜드스케이프</strong>를 활용한 자연환경 구현.
+          </li>
+          <li>
+            <strong>중급</strong> :
+            <strong>나이아가라(Niagara)</strong> 시스템을 활용한 이펙트 수정,
+            <strong>콜리전(Collision)</strong>설정 및 최적화.
+          </li>
+          <li style="padding-left: 3em; text-indent: -3em">
+            <strong>고급</strong> : <strong>PCG 그래프</strong>를 활용하여
+            지형위에 자연물을 생성, <strong>루멘(Lumen) 고급 라이팅</strong>으로
+            사실적인 실내,실외 라이팅씬을 구성.
+          </li>
+        </ul>
+      </div>
+
+      <!-- 섹션 6 -->
+      <div class="card" id="section6">
+        <h2>6. 앞으로 더 추가할 방향</h2>
+        <p></p>
+        <ul>
+          <li>
+            <strong>항목 1</strong> — 직접 제작한 영상자료 또는 가이드라인.
+          </li>
+          <li>
+            <strong>항목 2</strong> — 동렬이가 부대찌개 먹으면서 춤추는영상.
+          </li>
+        </ul>
+        <p><strong>언리얼 엔진 5는 이래도 복잡하다.</strong></p>
+      </div>
+    </div>
+  </body>
+</html>

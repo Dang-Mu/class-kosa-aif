@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>오늘의 추천 미션</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* 배경사진 mh.jpg 적용 및 기본 스타일 리셋 */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      body {
+        color: #333;
+        overflow-x: hidden;
+        line-height: 1.6;
+        background: url("mh.jpg") no-repeat center center fixed;
+        background-size: cover;
+      }
+
+      /* 사이드바 메뉴바 내 배경 통일 */
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: -240px;
+        width: 260px;
+        height: 100vh;
+        transition: left 0.3s ease;
+        z-index: 1000;
+        background:
+          linear-gradient(rgba(26, 26, 26, 0.85), rgba(26, 26, 26, 0.85)),
+          url("mh.jpg") no-repeat center center;
+        background-size: cover;
+        backdrop-filter: blur(8px);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .sidebar:hover {
+        left: 0;
+      }
+
+      .sidebar-content {
+        width: 240px;
+        padding: 30px 20px;
+      }
+
+      .sidebar-content h3 {
+        margin-bottom: 30px;
+        font-size: 1.2rem;
+        letter-spacing: 1px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        padding-bottom: 10px;
+        color: #fff;
+      }
+
+      .sidebar-content ul {
+        list-style: none;
+      }
+
+      .sidebar-content ul li {
+        margin-bottom: 20px;
+      }
+
+      .sidebar-content ul li a {
+        color: #ccc;
+        text-decoration: none;
+        font-size: 1rem;
+        transition: color 0.2s;
+      }
+
+      .sidebar-content ul li a:hover {
+        color: #fff;
+      }
+
+      /* 미션 컴포넌트 내부 스타일 */
+      .mission-level-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .mission-level-btn {
+        padding: 6px 18px;
+        border-radius: 20px;
+        border: 1px solid #cbd5e0;
+        background: transparent;
+        font-size: 0.85rem;
+        color: #4a5568;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .mission-level-btn:hover {
+        border-color: #333;
+        color: #111;
+      }
+      .mission-level-btn.active {
+        background-color: #2d3748;
+        color: #fff;
+        border-color: #2d3748;
+        font-weight: 600;
+      }
+      .mission-section-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #718096;
+        letter-spacing: 0.05em;
+        margin: 20px 0 10px 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .mission-section-title::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: #e2e8f0;
+      }
+      .fixed-mission-card {
+        background-color: rgba(255, 255, 255, 0.85);
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        transition: background 0.15s;
+      }
+      .fixed-mission-card:hover {
+        background-color: rgba(247, 250, 252, 0.95);
+      }
+      .fixed-mission-card.checked {
+        opacity: 0.65;
+      }
+      .fixed-mission-checkbox {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #cbd5e0;
+        border-radius: 5px;
+        flex-shrink: 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 2px;
+        transition: all 0.15s;
+        background: white;
+      }
+      .fixed-mission-checkbox.checked {
+        background-color: #2d3748;
+        border-color: #2d3748;
+      }
+      .fixed-mission-checkbox.checked::after {
+        content: "✓";
+        color: white;
+        font-size: 13px;
+        font-weight: bold;
+      }
+      .fixed-mission-content {
+        flex: 1;
+      }
+      .fixed-mission-num {
+        font-size: 0.75rem;
+        color: #a0aec0;
+        margin-bottom: 3px;
+      }
+      .fixed-mission-title {
+        font-size: 0.98rem;
+        color: #2d3748;
+        font-weight: 600;
+        margin-bottom: 3px;
+      }
+      .fixed-mission-title.done {
+        text-decoration: line-through;
+        color: #a0aec0;
+      }
+      .mission-card {
+        background-color: rgba(255, 255, 255, 0.85);
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 10px;
+      }
+      .mission-card-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .mission-badge-level {
+        font-size: 0.75rem;
+        font-weight: bold;
+        padding: 2px 10px;
+        border-radius: 12px;
+      }
+      .badge-beginner {
+        background-color: #f0fff4;
+        color: #38a169;
+      }
+      .badge-mid {
+        background-color: #fffbeb;
+        color: #d97706;
+      }
+      .badge-adv {
+        background-color: #fff5f5;
+        color: #e53e3e;
+      }
+      .badge-ai {
+        font-size: 0.75rem;
+        color: #553c9a;
+        background-color: #faf5ff;
+        border: 1px solid #e9d8fd;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-weight: 600;
+      }
+      .mission-card h4 {
+        font-size: 1.05rem;
+        color: #2d3748;
+        margin-bottom: 8px;
+      }
+      .mission-card p {
+        font-size: 0.95rem;
+        color: #4a5568;
+        line-height: 1.65;
+      }
+      .mission-tip-box {
+        margin-top: 12px;
+        background-color: rgba(235, 248, 255, 0.8);
+        border: 1px solid #bee3f8;
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-size: 0.85rem;
+        color: #2c5282;
+        display: flex;
+        gap: 6px;
+        align-items: flex-start;
+      }
+      .mission-date-label {
+        font-size: 0.82rem;
+        color: #a0aec0;
+        margin-bottom: 6px;
+      }
+      .mission-loading {
+        text-align: center;
+        padding: 24px 0;
+        color: #718096;
+        font-size: 0.95rem;
+      }
+      .spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #cbd5e0;
+        border-top-color: #2d3748;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 6px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .mission-submit-area {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px dashed #e9ecef;
+      }
+      .mission-submit-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 12px;
+      }
+      .upload-dropzone {
+        border: 2px dashed #cbd5e0;
+        border-radius: 8px;
+        padding: 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background-color: rgba(247, 250, 252, 0.7);
+      }
+      .upload-dropzone:hover,
+      .upload-dropzone.dragover {
+        border-color: #4a5568;
+        background-color: rgba(237, 242, 247, 0.8);
+      }
+      .upload-dropzone.has-file {
+        border-style: solid;
+        border-color: #4a5568;
+      }
+      .upload-dropzone p {
+        color: #718096;
+        font-size: 0.88rem;
+        margin-top: 6px;
+      }
+      .upload-dropzone span {
+        font-size: 0.78rem;
+        color: #a0aec0;
+      }
+      .preview-img {
+        width: 100%;
+        max-height: 200px;
+        object-fit: contain;
+        border-radius: 6px;
+        margin-top: 10px;
+      }
+      input[type="file"] {
+        display: none;
+      }
+      .mission-submit-btn {
+        margin-top: 12px;
+        width: 100%;
+        padding: 11px;
+        background-color: #2d3748;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .mission-submit-btn:hover {
+        background-color: #1a202c;
+      }
+      .mission-submit-btn:disabled {
+        background-color: #cbd5e0;
+        color: #718096;
+        cursor: not-allowed;
+      }
+      .feedback-good {
+        background-color: rgba(240, 255, 244, 0.9);
+        border: 1px solid #c6f6d5;
+        border-radius: 8px 8px 0 0;
+        padding: 14px 16px;
+        border-bottom: none;
+        margin-top: 14px;
+      }
+      .feedback-good-title {
+        font-size: 0.85rem;
+        font-weight: bold;
+        color: #276749;
+        margin-bottom: 6px;
+      }
+      .feedback-good p {
+        font-size: 0.9rem;
+        color: #276749;
+        line-height: 1.65;
+      }
+      .feedback-improve {
+        background-color: rgba(255, 251, 235, 0.9);
+        border: 1px solid #faf089;
+        border-radius: 0 0 8px 8px;
+        padding: 14px 16px;
+      }
+      .feedback-improve-title {
+        font-size: 0.85rem;
+        font-weight: bold;
+        color: #744210;
+        margin-bottom: 6px;
+      }
+      .feedback-improve p {
+        font-size: 0.9rem;
+        color: #744210;
+        line-height: 1.65;
+      }
+      .feedback-score-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 10px;
+        padding: 12px 16px;
+        background-color: rgba(247, 250, 252, 0.85);
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+      }
+      .feedback-score-num {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #2d3748;
+      }
+      .feedback-score-sub {
+        font-size: 0.85rem;
+        color: #718096;
+      }
+      .retry-link {
+        display: inline-block;
+        margin-top: 10px;
+        font-size: 0.85rem;
+        color: #718096;
+        cursor: pointer;
+        text-decoration: underline;
+        background: none;
+        border: none;
+        font-family: inherit;
+        padding: 0;
+      }
+      .retry-link:hover {
+        color: #2d3748;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="sidebar-content">
+        <h3>커리큘럼 메뉴</h3>
+        <ul>
+          <li><a href="index.html">홈으로 (학습 가이드)</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main class="main-container">
+      <header class="main-header">
+        <h1>오늘의 추천 미션</h1>
+      </header>
+
+      <section class="content-area">
+        <div class="content-wrapper">
+          <article class="info-section">
+            <h2>AI 실습 미션</h2>
+            <p>
+              고정 미션을 완료하고 체크하세요. AI 미션은 매일 새롭게 생성되며,
+              스크린샷을 제출하면 피드백을 받을 수 있습니다.
+            </p>
+
+            <div class="feature-sample">
+              <div class="mission-level-tabs">
+                <button
+                  class="mission-level-btn active"
+                  onclick="setLevel('beginner', this)"
+                >
+                  🌱 입문
+                </button>
+                <button
+                  class="mission-level-btn"
+                  onclick="setLevel('mid', this)"
+                >
+                  🔥 중급
+                </button>
+                <button
+                  class="mission-level-btn"
+                  onclick="setLevel('adv', this)"
+                >
+                  ⚡ 고급
+                </button>
+              </div>
+
+              <div class="mission-section-title">📌 고정 미션</div>
+              <div id="fixedMissions"></div>
+
+              <div class="mission-section-title">✨ AI 오늘의 미션</div>
+              <div id="missionArea">
+                <div class="mission-loading">
+                  <div class="spinner"></div>
+                  <div>AI 미션 생성 중...</div>
+                </div>
+              </div>
+
+              <div class="mission-submit-area">
+                <div class="mission-submit-label">📤 AI 미션 결과물 제출</div>
+                <label for="fileInput">
+                  <div class="upload-dropzone" id="uploadArea">
+                    <div style="font-size: 1.5rem">🖼️</div>
+                    <p>스크린샷을 업로드하세요</p>
+                    <span>클릭하거나 파일을 드래그하세요 (JPG, PNG)</span>
+                    <img
+                      id="previewImg"
+                      class="preview-img"
+                      style="display: none"
+                      alt="미리보기"
+                    />
+                  </div>
+                </label>
+                <input
+                  type="file"
+                  id="fileInput"
+                  accept="image/*"
+                  onchange="handleFile(event)"
+                />
+                <button
+                  class="mission-submit-btn"
+                  id="submitBtn"
+                  onclick="submitWork()"
+                  disabled
+                >
+                  AI 판정 받기 →
+                </button>
+                <div id="feedbackArea"></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const OPENROUTER_API_KEY = "YOUR_OPENROUTER_API_KEY";
+      const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+      const FREE_MODELS = [
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "deepseek/deepseek-v4-flash:free",
+        "openai/gpt-oss-20b:free",
+        "openai/gpt-oss-120b:free",
+        "moonshotai/kimi-k2.6:free",
+      ];
+
+      async function callAI(messages) {
+        for (const model of FREE_MODELS) {
+          const res = await fetch(OPENROUTER_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            },
+            body: JSON.stringify({ model, messages }),
+          });
+          const data = await res.json();
+          if (res.status === 429) {
+            console.warn(`${model} rate limited, 다음 모델 시도...`);
+            continue;
+          }
+          if (!res.ok)
+            throw new Error(`API 오류 ${res.status}: ${JSON.stringify(data)}`);
+          console.log(`사용 모델: ${model}`);
+          return data.choices?.[0]?.message?.content || "";
+        }
+        throw new Error(
+          "모든 모델이 rate limit에 걸렸습니다. 잠시 후 다시 시도해주세요.",
+        );
+      }
+
+      let currentLevel = "beginner";
+      let currentAiMission = "";
+      let uploadedImageBase64 = "";
+
+      const levelLabels = { beginner: "입문", mid: "중급", adv: "고급" };
+      const levelBadge = {
+        beginner: "badge-beginner",
+        mid: "badge-mid",
+        adv: "badge-adv",
+      };
+      const today = new Date();
+      const dateStr = today.toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        weekday: "long",
+      });
+
+      const fixedMissions = {
+        beginner: [
+          {
+            title: "기본 파트로 구조물 만들기",
+            desc: "언리얼 엔진의 기본 파트(Cube, Cylinder 등)를 사용하여 간단한 구조물을 하나 만드세요.",
+          },
+          {
+            title: "랜드스케이프로 자연환경 구현",
+            desc: "랜드스케이프(Landscape) 기능을 사용하여 산, 언덕, 평지 등의 자연환경을 구현하세요.",
+          },
+        ],
+        mid: [
+          {
+            title: "Niagara 이펙트 수정",
+            desc: "Niagara 시스템을 열어 기존 이펙트의 파라미터(색상, 속도, 크기 등)를 수정하여 새로운 느낌으로 변경하세요.",
+          },
+          {
+            title: "콜리전 설정 및 최적화",
+            desc: "배치된 메시의 콜리전을 직접 설정하고, LOD 및 콜리전 복잡도를 조정하여 씬 최적화를 진행하세요.",
+          },
+        ],
+        adv: [
+          {
+            title: "PCG로 월드 자동 생성",
+            desc: "Procedural Content Generation(PCG) 그래프를 사용하여 지형 위에 자연물(나무, 바위 등)을 절차적으로 배치하는 월드를 생성하세요.",
+          },
+          {
+            title: "Lumen 고급 라이팅 설정",
+            desc: "Lumen 글로벌 일루미네이션과 리플렉션을 활용하여 사실적인 실내 또는 실외 라이팅 씬을 완성하세요.",
+          },
+        ],
+      };
+
+      const checkState = {
+        beginner: [false, false],
+        mid: [false, false],
+        adv: [false, false],
+      };
+
+      function setLevel(level, btn) {
+        currentLevel = level;
+        document
+          .querySelectorAll(".mission-level-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        renderFixedMissions();
+        generateMission();
+        resetSubmit();
+      }
+
+      function renderFixedMissions() {
+        const container = document.getElementById("fixedMissions");
+        const missions = fixedMissions[currentLevel];
+        container.innerHTML = missions
+          .map(
+            (m, i) => `
+          <div class="fixed-mission-card ${checkState[currentLevel][i] ? "checked" : ""}">
+            <div class="fixed-mission-checkbox ${checkState[currentLevel][i] ? "checked" : ""}" onclick="toggleCheck(${i})"></div>
+            <div class="fixed-mission-content">
+              <div class="fixed-mission-num">고정 미션 ${i + 1}</div>
+              <div class="fixed-mission-title ${checkState[currentLevel][i] ? "done" : ""}">${m.title}</div>
+              <div style="font-size:0.88rem; color:#718096; margin-top:2px;">${m.desc}</div>
+            </div>
+          </div>
+        `,
+          )
+          .join("");
+      }
+
+      function toggleCheck(idx) {
+        checkState[currentLevel][idx] = !checkState[currentLevel][idx];
+        renderFixedMissions();
+      }
+
+      async function generateMission() {
+        const area = document.getElementById("missionArea");
+        area.innerHTML =
+          '<div class="mission-loading"><div class="spinner"></div><div>AI 미션 생성 중...</div></div>';
+        currentAiMission = "";
+
+        const prompt = `당신은 언리얼 엔진 교육 전문가입니다.
+오늘 날짜: ${today.toLocaleDateString("ko-KR")}
+난이도: ${levelLabels[currentLevel]}
+
+${levelLabels[currentLevel]} 수준 학습자를 위한 언리얼 엔진 실습 미션을 1개 생성해주세요.
+팹(Fab), 메가스캔, 언리얼 내장 기능 등 실제 에셋과 툴을 활용하는 구체적인 과제여야 합니다.
+모델링, 레벨 디자인, 라이팅 중 오늘 날짜 기준으로 자유롭게 선택하세요.
+
+반드시 아래 JSON 양식으로만 텍스트를 출력해 주세요:
+{
+  "title": "미션 제목 (20자 이내)",
+  "category": "모델링 또는 레벨 디자인 또는 라이팅",
+  "desc": "미션 설명 (2~3문장, 구체적인 조건 포함)",
+  "tip": "힌트 또는 참고 에셋/플러그인 이름"
+}`;
+
+        try {
+          const raw = await callAI([{ role: "user", content: prompt }]);
+          const jsonMatch = raw.match(/\{[\s\S]*\}/);
+          if (!jsonMatch)
+            throw new Error(`JSON 파싱 실패. 응답: ${raw.slice(0, 200)}`);
+          const mission = JSON.parse(jsonMatch[0]);
+          currentAiMission =
+            (mission.title || "미션") + ": " + (mission.desc || "");
+
+          area.innerHTML = `
+            <div class="mission-card">
+              <div class="mission-date-label">${dateStr}</div>
+              <div class="mission-card-meta">
+                <span class="mission-badge-level ${levelBadge[currentLevel]}">${levelLabels[currentLevel]}</span>
+                <span class="badge-ai">✨ AI 생성</span>
+                <span style="font-size:0.75rem; color:#718096; background:#EDF2F7; padding:2px 10px; border-radius:12px;">${mission.category}</span>
+              </div>
+              <h4>${mission.title}</h4>
+              <p>${mission.desc}</p>
+              <div class="mission-tip-box">
+                <span>💡</span>
+                <span>${mission.tip}</span>
+              </div>
+            </div>`;
+        } catch (e) {
+          console.error(e);
+          area.innerHTML = `<div class="mission-loading" style="color:#E53E3E;">미션 생성에 실패했습니다.<br><small style="font-size:0.75rem;">${e.message}</small></div>`;
+        }
+      }
+
+      function handleFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const full = ev.target.result;
+          uploadedImageBase64 = full.split(",")[1];
+          document.getElementById("fileInput").dataset.mimeType = file.type;
+
+          const img = document.getElementById("previewImg");
+          img.src = full;
+          img.style.display = "block";
+          document.getElementById("uploadArea").classList.add("has-file");
+          document.getElementById("submitBtn").disabled = false;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      const dropzone = document.getElementById("uploadArea");
+      dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("dragover");
+      });
+      dropzone.addEventListener("dragleave", () =>
+        dropzone.classList.remove("dragover"),
+      );
+      dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("dragover");
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith("image/")) {
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          document.getElementById("fileInput").files = dt.files;
+          handleFile({ target: { files: [file] } });
+        }
+      });
+
+      async function submitWork() {
+        if (!currentAiMission) {
+          alert(
+            "AI 미션이 아직 생성되지 않았습니다. 잠시 후 다시 시도해주세요.",
+          );
+          return;
+        }
+        const btn = document.getElementById("submitBtn");
+        btn.disabled = true;
+        btn.textContent = "AI가 검토 중...";
+        const feedbackArea = document.getElementById("feedbackArea");
+        feedbackArea.innerHTML =
+          '<div class="mission-loading"><div class="spinner"></div><div>결과물 분석 중...</div></div>';
+
+        const prompt = `당신은 언리얼 엔진 교육 전문가이자 친절한 멘토입니다.
+오늘의 미션: "${currentAiMission}"
+난이도: ${levelLabels[currentLevel]}
+
+학습자가 제출한 스크린샷을 보고 아래 JSON 양식으로만 결과를 출력하세요:
+{
+  "good": "잘한 점 2~3가지 (구체적으로, 한 문단)",
+  "improve": "개선할 점 2~3가지 (구체적인 방법 포함, 한 문단)",
+  "score": 점수숫자만 (0~100 정수)
+}`;
+
+        const mimeType =
+          document.getElementById("fileInput").dataset.mimeType || "image/jpeg";
+
+        try {
+          const messages = uploadedImageBase64
+            ? [
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: prompt },
+                    {
+                      type: "image_url",
+                      image_url: {
+                        url: `data:${mimeType};base64,${uploadedImageBase64}`,
+                      },
+                    },
+                  ],
+                },
+              ]
+            : [{ role: "user", content: prompt }];
+
+          const raw = await callAI(messages);
+          const jsonMatch = raw.match(/\{[\s\S]*\}/);
+          if (!jsonMatch)
+            throw new Error(`JSON 파싱 실패. 응답: ${raw.slice(0, 200)}`);
+          const fb = JSON.parse(jsonMatch[0]);
+
+          feedbackArea.innerHTML = `
+            <div class="feedback-good">
+              <div class="feedback-good-title">✅ 잘한 점</div>
+              <p>${fb.good}</p>
+            </div>
+            <div class="feedback-improve">
+              <div class="feedback-improve-title">🔧 개선할 점</div>
+              <p>${fb.improve}</p>
+            </div>
+            <div class="feedback-score-row">
+              <div class="feedback-score-num">${Math.round(fb.score)}점</div>
+              <div class="feedback-score-sub">AI 평가 점수</div>
+            </div>
+            <button class="retry-link" onclick="resetSubmit()">다시 제출하기</button>`;
+        } catch (e) {
+          console.error(e);
+          feedbackArea.innerHTML = `<div class="mission-loading" style="color:#E53E3E;">판정에 실패했습니다.<br><small style="font-size:0.75rem; word-break:break-all;">${e.message}</small></div>`;
+        }
+
+        btn.textContent = "AI 판정 받기 →";
+        btn.disabled = false;
+      }
+
+      function resetSubmit() {
+        uploadedImageBase64 = "";
+        document.getElementById("previewImg").style.display = "none";
+        document.getElementById("uploadArea").classList.remove("has-file");
+        document.getElementById("fileInput").value = "";
+        document.getElementById("feedbackArea").innerHTML = "";
+        document.getElementById("submitBtn").disabled = true;
+      }
+
+      renderFixedMissions();
+      generateMission();
+    </script>
+  </body>
+</html>
