@@ -16,3 +16,7 @@ npm-debug.log*
 # 빌드 산출물
 dist/
 build/
+
+# build.sh 실행 산출물
+logs/
+.run/
