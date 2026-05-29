@@ -68,6 +68,23 @@ cleanup() {
 }
 trap cleanup INT TERM EXIT
 
+# ── 시작 전 포트 정리 ─────────────────────────────────
+# 이전 실행이 Ctrl+C 없이 종료되면 서버가 남아 포트를 잡고 있어 EADDRINUSE가 난다.
+# 이 스크립트가 사용하는 포트의 기존 리스너를 미리 정리한다. (끄려면 NO_PORT_CLEAN=1)
+MANAGED_PORTS=("$TEAM2_PORT" "$TEAM5_PORT" 4001 3004 4006 3006 4007 3007)
+free_ports() {
+  command -v lsof >/dev/null 2>&1 || { warn "lsof 가 없어 포트 자동 정리를 건너뜁니다."; return 0; }
+  local port pids
+  for port in "${MANAGED_PORTS[@]}"; do
+    pids="$(lsof -ti tcp:"$port" 2>/dev/null)"
+    if [ -n "$pids" ]; then
+      warn "포트 $port 사용 중(PID: $(echo "$pids" | tr '\n' ' ')) → 기존 프로세스를 정리합니다."
+      kill $pids 2>/dev/null || true
+    fi
+  done
+  sleep 1
+}
+
 # ── 헬퍼 ──────────────────────────────────────────────
 # node_modules 가 없으면 npm install. 실패하면 1 반환.
 ensure_deps() {
@@ -105,6 +122,7 @@ launch() {
 
 # ══════════════════════════════════════════════════════
 info "전체 데모 서버를 개발 모드로 실행합니다. (중지: Ctrl+C)"
+[ "${NO_PORT_CLEAN:-0}" = "1" ] || free_ports
 echo
 
 # team1 — Node 정적+API 서버 (내장 모듈만, 설치 불필요)
@@ -113,8 +131,8 @@ launch "team1" "$ROOT/team1" node server.js
 # team2 — 정적(sql.js + university.db). 디렉토리 루트에서 서빙해야 fetch가 동작.
 launch "team2" "$ROOT/team2" python3 -m http.server "$TEAM2_PORT"
 
-# team4 — Vite React (개발 서버)
-ensure_deps "$ROOT/team4" "team4" && launch "team4" "$ROOT/team4" npm run dev
+# team4 — Vite React (개발 서버). --host 로 외부(퍼블릭 IP) 접속 허용.
+ensure_deps "$ROOT/team4" "team4" && launch "team4" "$ROOT/team4" npm run dev -- --host
 
 # team5 — 단일 HTML. 전체 레포 노출을 피하려고 전용 디렉토리에 심볼릭 링크 후 서빙.
 if [ -f "$ROOT/team5.html" ]; then
@@ -129,28 +147,29 @@ fi
 ensure_deps "$ROOT/team6/server" "team6-server"
 ensure_deps "$ROOT/team6/client" "team6-client" && {
   launch "team6-server" "$ROOT/team6/server" node index.js
-  launch "team6-client" "$ROOT/team6/client" npm run dev
+  launch "team6-client" "$ROOT/team6/client" npm run dev -- --host
 }
 
 # team7 — Node 서버 + Vite 클라이언트
 ensure_deps "$ROOT/team7/server" "team7-server"
 ensure_deps "$ROOT/team7" "team7" && {
   launch "team7-server" "$ROOT/team7/server" node index.js
-  launch "team7-client" "$ROOT/team7" npm run dev
+  launch "team7-client" "$ROOT/team7" npm run dev -- --host
 }
 
 # ── 실행 요약 ─────────────────────────────────────────
 sleep 2
 echo
 ok "실행된 서버 (${#PIDS[@]}개):"
-printf "  %-16s %s\n" "team1"        "http://localhost:4001            ${DIM}(server.js · .env SERVER_PORT)${NC}"
-printf "  %-16s %s\n" "team2"        "http://localhost:${TEAM2_PORT}"
-printf "  %-16s %s\n" "team4"        "Vite 개발 서버 ${DIM}(.env CLIENT_PORT · 실제 포트는 logs/team4.log)${NC}"
-printf "  %-16s %s\n" "team5"        "http://localhost:${TEAM5_PORT}"
-printf "  %-16s %s\n" "team6 client" "http://localhost:3000            ${DIM}(API → :4000 프록시)${NC}"
-printf "  %-16s %s\n" "team7 client" "Vite 개발 서버 ${DIM}(실제 포트는 logs/team7-client.log)${NC}"
+printf "  %-16s %s\n" "team1"        "http://<HOST>:4001            ${DIM}(server.js · 기본 4001)${NC}"
+printf "  %-16s %s\n" "team2"        "http://<HOST>:${TEAM2_PORT}"
+printf "  %-16s %s\n" "team4"        "http://<HOST>:3004            ${DIM}(Vite · 기본 3004)${NC}"
+printf "  %-16s %s\n" "team5"        "http://<HOST>:${TEAM5_PORT}"
+printf "  %-16s %s\n" "team6 client" "http://<HOST>:3006            ${DIM}(API → :4006 프록시)${NC}"
+printf "  %-16s %s\n" "team7 client" "http://<HOST>:3007            ${DIM}(API → :4007 프록시)${NC}"
 echo
-info "포트는 각 팀의 .env(SERVER_PORT/CLIENT_PORT)에 따라 달라집니다. 정확한 주소는 각 로그를 확인하세요."
+info "<HOST> = localhost 또는 EC2 퍼블릭 IP. Vite는 --host 로 외부 노출됩니다(보안그룹에 해당 포트 개방 필요)."
+info "포트는 각 팀의 .env(SERVER_PORT/CLIENT_PORT)로 덮어쓸 수 있습니다. 정확한 값은 각 로그를 확인하세요."
 info "로그 실시간 보기:  tail -f logs/<팀>.log"
 echo
 ok "모든 서버가 백그라운드에서 실행 중입니다. 중지하려면 ${B}Ctrl+C${NC}."
