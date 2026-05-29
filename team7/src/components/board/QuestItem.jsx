@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { formatDue } from '../../utils/questUtils'
 
 function EditForm({ quest, onSave, onCancel, showToast }) {
@@ -13,17 +13,17 @@ function EditForm({ quest, onSave, onCancel, showToast }) {
   }
 
   return (
-    <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border)', background: '#0b0c0d' }}>
+    <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border)', background: 'var(--input-bg)' }}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" style={{ flex: 2, fontSize: 13, padding: 8 }} />
         <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="과목" style={{ flex: 1, fontSize: 13, padding: 8 }} />
         <input type="date" value={due} onChange={(e) => setDue(e.target.value)}
-          style={{ flex: 1, background: '#141517', border: '2px solid var(--border)', color: 'var(--point)', padding: 8, fontFamily: "'DungGeunMo',monospace", fontSize: 12, cursor: 'none' }} />
+          style={{ flex: 1, background: 'var(--bg-main)', border: '2px solid var(--border)', color: 'var(--point)', padding: 8, fontFamily: 'var(--font-ui)', fontSize: 12, cursor: 'none' }} />
       </div>
       <textarea value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="설명"
-        style={{ width: '100%', background: '#141517', border: '2px solid var(--border)', color: 'var(--point)', padding: 10, fontFamily: "'DungGeunMo',monospace", fontSize: 12, resize: 'vertical', minHeight: 50, marginBottom: 8, textAlign: 'left' }} />
+        style={{ width: '100%', background: 'var(--bg-main)', border: '2px solid var(--border)', color: 'var(--point)', padding: 10, fontFamily: 'var(--font-ui)', fontSize: 12, resize: 'vertical', minHeight: 50, marginBottom: 8, textAlign: 'left' }} />
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onCancel} style={{ background: 'none', border: '1px solid var(--border)', color: '#888', padding: '6px 14px', fontFamily: "'DungGeunMo',monospace", fontSize: 12, cursor: 'none' }}>취소</button>
+        <button onClick={onCancel} style={{ background: 'none', border: '1px solid var(--border)', color: '#888', padding: '6px 14px', fontFamily: 'var(--font-ui)', fontSize: 12, cursor: 'none' }}>취소</button>
         <button className="btn-pixel" style={{ padding: '6px 16px', fontSize: 12 }} onClick={handleSave}>저장</button>
       </div>
     </div>
@@ -46,7 +46,7 @@ export default function QuestItem({ quest, isDone, isEditing, onToggleDone, onEd
           width: 24, height: 24, flexShrink: 0,
           background: isDone ? '#4ade80' : 'transparent',
           border: `2px solid ${isDone ? '#4ade80' : 'var(--border)'}`,
-          color: '#000', fontSize: 13, cursor: 'none', fontFamily: "'DungGeunMo',monospace",
+          color: '#000', fontSize: 13, cursor: 'none', fontFamily: 'var(--font-ui)',
         }}>{isDone ? '✓' : ''}</button>
 
         {/* 제목 */}
@@ -71,11 +71,11 @@ export default function QuestItem({ quest, isDone, isEditing, onToggleDone, onEd
           <button onClick={() => isEditing ? onCancelEdit() : onEdit(quest)} style={{
             background: 'transparent', border: `1px solid ${isEditing ? 'var(--point)' : 'var(--border)'}`,
             color: isEditing ? 'var(--point)' : 'var(--text)', padding: '4px 10px',
-            fontFamily: "'DungGeunMo',monospace", fontSize: 12, cursor: 'none', opacity: isEditing ? 1 : 0.6,
+            fontFamily: 'var(--font-ui)', fontSize: 12, cursor: 'none', opacity: isEditing ? 1 : 0.6,
           }}>✏</button>
           <button onClick={() => onDelete(quest.id)} style={{
             background: 'transparent', border: '1px solid #ff444466', color: '#ff4444',
-            padding: '4px 10px', fontFamily: "'DungGeunMo',monospace", fontSize: 12, cursor: 'none',
+            padding: '4px 10px', fontFamily: 'var(--font-ui)', fontSize: 12, cursor: 'none',
           }}>✕</button>
         </div>
       </div>

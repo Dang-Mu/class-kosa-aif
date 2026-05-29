@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-export default function SettingsTab({ fireEnabled, nightMode, onToggleFire, onToggleNight }) {
+export default function SettingsTab({ fireEnabled, nightMode, darkMode, onToggleFire, onToggleNight, onToggleDark }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef(null)
 
@@ -43,6 +43,15 @@ export default function SettingsTab({ fireEnabled, nightMode, onToggleFire, onTo
               onClick={onToggleNight}
             >
               {nightMode ? 'ON' : 'OFF'}
+            </button>
+          </div>
+          <div className="setting-item">
+            <span>다크 모드</span>
+            <button
+              className={`toggle-btn ${darkMode ? 'active' : ''}`}
+              onClick={onToggleDark}
+            >
+              {darkMode ? 'ON' : 'OFF'}
             </button>
           </div>
         </div>

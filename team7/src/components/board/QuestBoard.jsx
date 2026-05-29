@@ -13,8 +13,8 @@ export default function QuestBoard({ roomId, roomInfo, username, onExit, showToa
         style={{
           position: 'fixed', top: 20, left: 20, zIndex: 10001,
           background: 'var(--panel)', border: '2px solid var(--border)', color: 'var(--text)',
-          padding: '10px 18px', fontFamily: "'DungGeunMo',monospace", fontSize: 14,
-          boxShadow: '4px 4px 0 #000', cursor: 'none',
+          padding: '10px 18px', fontFamily: 'var(--font-ui)', fontSize: 14,
+          boxShadow: '4px 4px 0 var(--shadow)', cursor: 'none',
         }}
       >
         ← 메인으로
@@ -23,7 +23,7 @@ export default function QuestBoard({ roomId, roomInfo, username, onExit, showToa
       {/* 헤더 */}
       <div style={{ marginBottom: 30, borderBottom: '2px solid var(--border)', paddingBottom: 20, paddingLeft: 160 }}>
         <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 4 }}>[ 작전 통제 센터 / 퀘스트 보드 ]</div>
-        <h2 style={{ margin: 0, color: 'var(--point)', fontSize: 32 }}>
+        <h2 style={{ margin: 0, color: 'var(--point)', fontSize: 32, fontFamily: 'var(--font-ui)' }}>
           {roomInfo.school} {roomInfo.grade}학년 {roomInfo.class}반 퀘스트 보드
         </h2>
         <div style={{ fontSize: 12, opacity: 0.4, marginTop: 6 }}>
@@ -40,7 +40,7 @@ export default function QuestBoard({ roomId, roomInfo, username, onExit, showToa
               background: isActive ? 'var(--point)' : 'transparent',
               border: `2px solid ${isActive ? 'var(--point)' : 'var(--border)'}`,
               borderBottom: 'none', color: isActive ? '#000' : 'var(--text)',
-              padding: '10px 24px', fontFamily: "'DungGeunMo',monospace", fontSize: 14,
+              padding: '10px 24px', fontFamily: 'var(--font-ui)', fontSize: 14,
               cursor: 'none', marginBottom: -2, opacity: isActive ? 1 : 0.5,
             }}>{tab.label}</button>
           )

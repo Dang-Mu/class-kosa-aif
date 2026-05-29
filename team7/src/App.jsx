@@ -13,6 +13,10 @@ const ADMIN_KEY = '0207'
 export default function App() {
   const [fireEnabled, setFireEnabled] = useState(true)
   const [nightMode, setNightMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('sqb_darkmode')
+    return saved === null ? true : saved === '1'
+  })
   const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('sqb_admin') === '1')
   const [showRoomList, setShowRoomList] = useState(false)
 
@@ -31,6 +35,16 @@ export default function App() {
   useEffect(() => {
     document.body.style.overflow = currentRoom ? 'auto' : 'hidden'
   }, [currentRoom])
+
+  // 다크모드 body 클래스 제어
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.remove('light-mode')
+    } else {
+      document.body.classList.add('light-mode')
+    }
+    localStorage.setItem('sqb_darkmode', darkMode ? '1' : '0')
+  }, [darkMode])
 
   // 관리자 인증
   const handleAuthAdmin = () => {
@@ -87,8 +101,10 @@ export default function App() {
       <SettingsTab
         fireEnabled={fireEnabled}
         nightMode={nightMode}
+        darkMode={darkMode}
         onToggleFire={() => setFireEnabled((v) => !v)}
         onToggleNight={() => setNightMode((v) => !v)}
+        onToggleDark={() => setDarkMode((v) => !v)}
       />
 
       {/* 메인 화면 */}

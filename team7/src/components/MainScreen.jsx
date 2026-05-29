@@ -2,10 +2,13 @@ export default function MainScreen({ onOpenRooms, onAuthAdmin, isAdmin }) {
   return (
     <div className="container">
       <div className="header">
-        <h1 className="title">작전 통제 센터</h1>
-        <p style={{ opacity: 0.5, marginTop: 20 }}>
-          [ 픽셀 탄환 장전 완료 - 임무를 개시하십시오 ]
-        </p>
+        <div className="title-wrapper">
+          <span className="title-label">◆ School Quest Board ◆</span>
+          <h1 className="title">작전 통제 센터</h1>
+          <p className="title-sub">
+            [ 픽셀 탄환 장전 완료 — 임무를 개시하십시오 ]
+          </p>
+        </div>
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: '1fr' }}>
